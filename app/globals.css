@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+:root {
+  /* Design System Colors */
+  --primary: #005CAF;
+  --accent: #F08300;
+  --error: #D32F2F;
+  
+  /* Base Colors */
+  --background: #F8F9FA;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-error: var(--error);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode adjustments - using darker shades of blue/gray */
+    --background: #0f172a;
+    --foreground: #ededed;
+    
+    /* Keep brand colors or adjust slightly for dark mode if needed */
+    /* --primary: #3b82f6; Maybe lighter for dark mode? Keeping original for brand consistency for now */
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, "Noto Sans JP", sans-serif);
+}
