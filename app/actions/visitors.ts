@@ -15,6 +15,7 @@ const createVisitorSchema = z.object({
   attribute: z.string().min(1, '属性は必須です'),
   segment: z.string().optional(),
   image_url: z.string().optional(),
+  audio_url: z.string().optional(),
 })
 
 export async function createVisitor(formData: FormData) {
@@ -34,6 +35,7 @@ export async function createVisitor(formData: FormData) {
       attribute: formData.get('attribute'),
       segment: formData.get('segment'),
       image_url: formData.get('image_url'),
+      audio_url: formData.get('audio_url'),
     }
 
     const validated = createVisitorSchema.parse(rawData)
@@ -48,6 +50,7 @@ export async function createVisitor(formData: FormData) {
         attribute: validated.attribute,
         segment: validated.segment || null,
         image_url: validated.image_url || null,
+        audio_url: validated.audio_url || null,
         is_sent: false,
         sync_status: 'pending'
       })

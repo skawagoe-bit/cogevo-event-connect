@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
 import QRCode from "react-qr-code";
+import { createClient } from "@/lib/supabase/client";
+import { createVisitor } from "@/app/actions/visitors";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -16,6 +18,9 @@ export default function ScanPage() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isRecordingMemo, setIsRecordingMemo] = useState(false);
   const [memoDuration, setMemoDuration] = useState(0);
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const [showQR, setShowQR] = useState(false);
   
   // Camera references
@@ -94,12 +99,71 @@ export default function ScanPage() {
     setCapturedImage(null);
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!selectedAttribute) {
       alert("属性を選択してください");
       return;
     }
-    router.push("/complete");
+
+    try {
+      const supabase = createClient();
+      let imageUrl = "";
+      let audioUrl = "";
+
+      // 1. Upload Image
+      if (capturedImage) {
+        const imageBlob = await (await fetch(capturedImage)).blob();
+        const filename = `image-${Date.now()}.jpg`;
+        const { error } = await supabase.storage
+          .from('visitor-uploads')
+          .upload(filename, imageBlob);
+        
+        if (error) throw error;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('visitor-uploads')
+          .getPublicUrl(filename);
+        imageUrl = publicUrl;
+      }
+
+      // 2. Upload Audio
+      if (recordedAudio) {
+        const filename = `audio-${Date.now()}.webm`;
+        const { error } = await supabase.storage
+          .from('visitor-uploads')
+          .upload(filename, recordedAudio);
+        
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('visitor-uploads')
+          .getPublicUrl(filename);
+        audioUrl = publicUrl;
+      }
+
+      // 3. Register Data
+      const formData = new FormData();
+      // Use a fixed valid UUID for MVP. 
+      // In production, this should come from the selected event context.
+      formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
+      formData.append("attribute", selectedAttribute);
+      if (selectedSegment) formData.append("segment", selectedSegment);
+      if (imageUrl) formData.append("image_url", imageUrl);
+      if (audioUrl) formData.append("audio_url", audioUrl);
+
+      const result = await createVisitor(formData);
+      
+      if (result.success) {
+        router.push("/complete");
+      } else {
+        console.error(result.error);
+        alert("登録エラー: " + result.error);
+      }
+
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      alert("登録処理中にエラーが発生しました: " + err.message);
+    }
   };
 
   const toggleRole = (role: string) => {
@@ -108,19 +172,53 @@ export default function ScanPage() {
     );
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     if (isRecordingMemo) {
-      setIsRecordingMemo(false);
-      setMemoDuration(0);
-      alert("商談メモを保存しました");
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+        setIsRecordingMemo(false);
+      }
     } else {
-      setIsRecordingMemo(true);
-      const _interval = setInterval(() => {
-        setMemoDuration(prev => prev + 1);
-      }, 1000);
-      return () => clearInterval(_interval);
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          setRecordedAudio(audioBlob);
+          stream.getTracks().forEach(track => track.stop());
+          alert("商談メモを保存しました");
+        };
+
+        mediaRecorder.start();
+        setIsRecordingMemo(true);
+        setMemoDuration(0);
+      } catch (err) {
+        console.error("Microphone error:", err);
+        alert("マイクへのアクセスが許可されていません");
+      }
     }
   };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecordingMemo) {
+      interval = setInterval(() => {
+        setMemoDuration(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRecordingMemo]);
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
