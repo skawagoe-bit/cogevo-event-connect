@@ -8,13 +8,13 @@ import { createClient } from '@supabase/supabase-js'
 // バリデーションスキーマ
 const createVisitorSchema = z.object({
   event_id: z.string().uuid(),
-  name: z.string().optional(),
-  company: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
+  name: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional().or(z.literal('')),
   attribute: z.string().min(1, '属性は必須です'),
-  segment: z.string().optional(),
-  image_url: z.string().optional(),
-  audio_url: z.string().optional(),
+  segment: z.string().nullable().optional(),
+  image_url: z.string().nullable().optional(),
+  audio_url: z.string().nullable().optional(),
 })
 
 export async function createVisitor(formData: FormData) {
