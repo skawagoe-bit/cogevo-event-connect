@@ -86,3 +86,28 @@ export async function updateGiftStock(id: string, newStock: number) {
     }
   }
 }
+
+export async function getGifts(eventId: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) return { success: true, data: [] } // 認証エラーにはせず空を返す
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data, error } = await supabase
+      .from('gift_items')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Get gifts error:', error)
+    return { success: false, error: 'ギフトの取得に失敗しました' }
+  }
+}

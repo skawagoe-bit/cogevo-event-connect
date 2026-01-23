@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Minus, Gift as GiftIcon, Package, Settings, X, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { createGift, updateGiftStock } from "@/app/actions/gifts";
+import { createGift, updateGiftStock, getGifts } from "@/app/actions/gifts";
 
 // 以前のファイルで定義されていた型定義と定数
 const CURRENT_EVENT_ID = "123e4567-e89b-12d3-a456-426614174000";
@@ -34,17 +33,13 @@ export default function GiftPage() {
 
   const fetchGifts = async () => {
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('gift_items')
-      .select('*')
-      .eq('event_id', CURRENT_EVENT_ID)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching gifts:", error);
+    // Server Action経由で取得（RLS回避のため）
+    const result = await getGifts(CURRENT_EVENT_ID);
+    
+    if (result.success) {
+      setGifts(result.data as GiftItem[] || []);
     } else {
-      setGifts(data || []);
+      console.error("Error fetching gifts:", result.error);
     }
     setLoading(false);
   };
