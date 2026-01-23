@@ -34,8 +34,10 @@ export default function ScanPage() {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode },
-        audio: false
+        video: { 
+          facingMode: facingMode === 'user' ? 'user' : { ideal: 'environment' },
+          audio: false
+        }
       });
       
       streamRef.current = stream;
