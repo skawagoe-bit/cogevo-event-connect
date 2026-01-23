@@ -1,5 +1,7 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -16,13 +18,24 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-xs space-y-4">
-        <Link href="/preset" className="block w-full">
-          <Button className="w-full" size="lg">
-            ログイン
-          </Button>
-        </Link>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <Button className="w-full" size="lg">
+              ログインして開始
+            </Button>
+          </SignInButton>
+        </SignedOut>
+        
+        <SignedIn>
+          <Link href="/dashboard" className="block w-full">
+            <Button className="w-full" size="lg">
+              ダッシュボードへ <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
+        </SignedIn>
+
         <p className="text-center text-xs text-gray-400">
-          ※ デモ版のため認証はスキップされます
+          Powered by Supabase & Clerk
         </p>
       </div>
     </div>

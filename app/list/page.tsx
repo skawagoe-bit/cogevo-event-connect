@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Clock, Send, Search, X, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockVisitors } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
+import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
+import type { Database } from "@/lib/supabase/types";
+
+type Visitor = Database['public']['Tables']['visitors']['Row'];
 
 export default function ListPage() {
   const router = useRouter();
@@ -15,12 +19,55 @@ export default function ListPage() {
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Initial data fetch
+  useEffect(() => {
+    const fetchVisitors = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('visitors')
+        .select('*')
+        .order('scanned_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching visitors:', error);
+      } else {
+        setVisitors(data || []);
+      }
+      setIsLoading(false);
+    };
+
+    fetchVisitors();
+  }, []);
+
+  // Realtime subscription
+  useRealtimeSubscription<Visitor>(
+    'visitors-list',
+    '*',
+    'visitors',
+    undefined,
+    (payload) => {
+      if (payload.eventType === 'INSERT') {
+        setVisitors((prev) => [payload.new, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        setVisitors((prev) => 
+          prev.map((v) => (v.id === payload.new.id ? payload.new : v))
+        );
+      } else if (payload.eventType === 'DELETE') {
+        setVisitors((prev) => 
+          prev.filter((v) => v.id !== payload.old.id)
+        );
+      }
+    }
+  );
   
   // Filter logic
-  const filteredVisitors = mockVisitors.filter(v => {
+  const filteredVisitors = visitors.filter(v => {
     // Tab filter
-    if (activeTab === 'unsent' && v.isSent) return false;
-    if (activeTab === 'sent' && !v.isSent) return false;
+    if (activeTab === 'unsent' && v.is_sent) return false;
+    if (activeTab === 'sent' && !v.is_sent) return false;
     
     // Attribute filter
     if (selectedAttribute && v.attribute !== selectedAttribute) return false;
@@ -29,16 +76,16 @@ export default function ListPage() {
     if (searchTerm) {
         const lowerTerm = searchTerm.toLowerCase();
         return (
-            v.name.toLowerCase().includes(lowerTerm) || 
-            v.company.toLowerCase().includes(lowerTerm)
+            (v.name || '').toLowerCase().includes(lowerTerm) || 
+            (v.company || '').toLowerCase().includes(lowerTerm)
         );
     }
     
     return true;
   });
 
-  const unsentCount = mockVisitors.filter(v => !v.isSent).length;
-  const sentCount = mockVisitors.filter(v => v.isSent).length;
+  const unsentCount = visitors.filter(v => !v.is_sent).length;
+  const sentCount = visitors.filter(v => v.is_sent).length;
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -46,7 +93,7 @@ export default function ListPage() {
         <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({mockVisitors.length})</h1>
+        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length})</h1>
         <button 
            onClick={() => router.push('/dashboard')}
            className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"
@@ -150,7 +197,11 @@ export default function ListPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3">
-        {filteredVisitors.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-48">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredVisitors.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm">
             <span className="mb-2 block text-2xl">🔍</span>
             条件に一致するデータはありません
@@ -160,20 +211,20 @@ export default function ListPage() {
             <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-800 text-lg">{visitor.name}</span>
+                  <span className="font-bold text-gray-800 text-lg">{visitor.name || '名称未設定'}</span>
                   <span className={cn(
                     "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
                     visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
                     visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
                     "bg-gray-100 text-gray-600"
                   )}>
-                    {visitor.attribute}
+                    {visitor.attribute || '未設定'}
                   </span>
                 </div>
-                <div className="text-sm text-gray-500 font-medium">{visitor.company}</div>
+                <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                 {visitor.isSent ? (
+                 {visitor.is_sent ? (
                    <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
                      <Check className="w-3 h-3" /> 送信済
                    </span>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -17,6 +17,47 @@ export default function ScanPage() {
   const [isRecordingMemo, setIsRecordingMemo] = useState(false);
   const [memoDuration, setMemoDuration] = useState(0);
   const [showQR, setShowQR] = useState(false);
+  
+  // Camera references
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Initialize camera
+  const startCamera = useCallback(async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
+      });
+      
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setHasCameraPermission(false);
+    }
+  }, [facingMode]);
+
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [startCamera]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === "user" ? "environment" : "user");
+  };
 
   const handleRegister = () => {
     if (!selectedAttribute) {
@@ -101,12 +142,24 @@ export default function ScanPage() {
 
         {/* Camera Preview Area */}
         <div className="relative aspect-[4/3] bg-slate-900 mx-0 mt-0 overflow-hidden flex items-center justify-center group">
-           <div className="text-gray-400 flex flex-col items-center animate-pulse">
-             <Camera className="w-12 h-12 mb-3 opacity-50" />
-             <span className="text-sm font-medium tracking-wide">カメラプレビュー</span>
-           </div>
+           {hasCameraPermission === true ? (
+             <video 
+               ref={videoRef}
+               autoPlay 
+               playsInline 
+               muted
+               className="absolute inset-0 w-full h-full object-cover"
+             />
+           ) : (
+             <div className="text-gray-400 flex flex-col items-center animate-pulse">
+               <Camera className="w-12 h-12 mb-3 opacity-50" />
+               <span className="text-sm font-medium tracking-wide">
+                 {hasCameraPermission === false ? "カメラへのアクセスが拒否されました" : "カメラを起動中..."}
+               </span>
+             </div>
+           )}
            
-           <div className="absolute inset-x-8 inset-y-8 border-2 border-white/40 rounded-lg pointer-events-none flex flex-col justify-between p-2">
+           <div className="absolute inset-x-8 inset-y-8 border-2 border-white/40 rounded-lg pointer-events-none flex flex-col justify-between p-2 z-10">
              <div className="w-full flex justify-between">
                <div className="w-4 h-4 border-t-2 border-l-2 border-white"></div>
                <div className="w-4 h-4 border-t-2 border-r-2 border-white"></div>
@@ -117,16 +170,25 @@ export default function ScanPage() {
              </div>
            </div>
            
-           {/* QR Button Overlay in Camera View */}
-           <button 
-             onClick={() => setShowQR(true)}
-             className="absolute top-4 right-4 bg-white/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-white/30 transition-colors z-10"
-           >
-             <QrCode className="w-3.5 h-3.5" />
-             名刺交換QRを表示
-           </button>
+           {/* Controls Overlay */}
+           <div className="absolute top-4 right-4 flex gap-2 z-20">
+             <button 
+               onClick={toggleCamera}
+               className="bg-black/40 backdrop-blur-md text-white p-2 rounded-full hover:bg-black/60 transition-colors"
+               title="カメラ切り替え"
+             >
+               <RefreshCcw className="w-4 h-4" />
+             </button>
+             <button 
+               onClick={() => setShowQR(true)}
+               className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+             >
+               <QrCode className="w-3.5 h-3.5" />
+               名刺交換QR
+             </button>
+           </div>
 
-           <div className="absolute bottom-4 text-white/80 text-xs bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm">
+           <div className="absolute bottom-4 text-white/80 text-xs bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm z-10">
              名刺を枠内に合わせてください
            </div>
         </div>
