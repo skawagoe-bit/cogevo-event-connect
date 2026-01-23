@@ -38,7 +38,7 @@ export function useRealtimeSubscription<T extends { [key: string]: any }>(
     // イベントリスナーの登録
     channel
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: eventName,
           schema: 'public',
