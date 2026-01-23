@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 const giftItemSchema = z.object({
   name: z.string().min(1, 'ギフト名は必須です'),
   stock_count: z.coerce.number().min(0, '在庫数は0以上である必要があります'),
-  image_url: z.string().optional().or(z.literal('')),
+  image_url: z.string().nullable().optional(),
   event_id: z.string().uuid(),
 })
 
