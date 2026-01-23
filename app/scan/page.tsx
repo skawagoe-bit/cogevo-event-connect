@@ -41,6 +41,12 @@ export default function ScanPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // 明示的に再生を開始（iOS対策）
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          console.error("Play error:", e);
+        }
       }
       setHasCameraPermission(true);
     } catch (err: any) {
