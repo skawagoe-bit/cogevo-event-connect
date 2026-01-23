@@ -23,6 +23,7 @@ export default function ScanPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize camera
@@ -59,16 +60,38 @@ export default function ScanPage() {
   }, [facingMode]);
 
   useEffect(() => {
-    startCamera();
+    if (!capturedImage) {
+      startCamera();
+    }
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [startCamera]);
+  }, [startCamera, capturedImage]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
+  };
+
+  const takePhoto = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0);
+      const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+      setCapturedImage(imageUrl);
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+  }, []);
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
   };
 
   const handleRegister = () => {
@@ -154,7 +177,19 @@ export default function ScanPage() {
 
         {/* Camera Preview Area */}
         <div className="relative aspect-[4/3] bg-slate-900 mx-0 mt-0 overflow-hidden flex items-center justify-center group">
-           {hasCameraPermission === true ? (
+           {capturedImage ? (
+             <div className="relative w-full h-full">
+               <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+               <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 animate-in fade-in">
+                 <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white">
+                   再撮影
+                 </Button>
+                 <Button onClick={() => alert('画像を使用します（未実装）')} className="bg-blue-600 hover:bg-blue-700 text-white">
+                   使用する
+                 </Button>
+               </div>
+             </div>
+           ) : hasCameraPermission === true ? (
              <video 
                ref={videoRef}
                autoPlay 
@@ -179,43 +214,51 @@ export default function ScanPage() {
              </div>
            )}
            
-           <div className="absolute inset-x-8 inset-y-8 border-2 border-white/40 rounded-lg pointer-events-none flex flex-col justify-between p-2 z-10">
-             <div className="w-full flex justify-between">
-               <div className="w-4 h-4 border-t-2 border-l-2 border-white"></div>
-               <div className="w-4 h-4 border-t-2 border-r-2 border-white"></div>
-             </div>
-             <div className="w-full flex justify-between">
-               <div className="w-4 h-4 border-b-2 border-l-2 border-white"></div>
-               <div className="w-4 h-4 border-b-2 border-r-2 border-white"></div>
-             </div>
-           </div>
-           
-           {/* Controls Overlay */}
-           <div className="absolute top-4 right-4 flex gap-2 z-20">
-             <button 
-               onClick={toggleCamera}
-               className="bg-black/40 backdrop-blur-md text-white p-2 rounded-full hover:bg-black/60 transition-colors"
-               title="カメラ切り替え"
-             >
-               <RefreshCcw className="w-4 h-4" />
-             </button>
-             <button 
-               onClick={() => setShowQR(true)}
-               className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-white/30 transition-colors"
-             >
-               <QrCode className="w-3.5 h-3.5" />
-               名刺交換QR
-             </button>
-           </div>
+           {!capturedImage && (
+             <>
+               <div className="absolute inset-x-8 inset-y-8 border-2 border-white/40 rounded-lg pointer-events-none flex flex-col justify-between p-2 z-10">
+                 <div className="w-full flex justify-between">
+                   <div className="w-4 h-4 border-t-2 border-l-2 border-white"></div>
+                   <div className="w-4 h-4 border-t-2 border-r-2 border-white"></div>
+                 </div>
+                 <div className="w-full flex justify-between">
+                   <div className="w-4 h-4 border-b-2 border-l-2 border-white"></div>
+                   <div className="w-4 h-4 border-b-2 border-r-2 border-white"></div>
+                 </div>
+               </div>
+               
+               {/* Controls Overlay */}
+               <div className="absolute top-4 right-4 flex gap-2 z-20">
+                 <button 
+                   onClick={toggleCamera}
+                   className="bg-black/40 backdrop-blur-md text-white p-2 rounded-full hover:bg-black/60 transition-colors"
+                   title="カメラ切り替え"
+                 >
+                   <RefreshCcw className="w-4 h-4" />
+                 </button>
+                 <button 
+                   onClick={() => setShowQR(true)}
+                   className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+                 >
+                   <QrCode className="w-3.5 h-3.5" />
+                   名刺交換QR
+                 </button>
+               </div>
 
-           <div className="absolute bottom-4 text-white/80 text-xs bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm z-10">
-             名刺を枠内に合わせてください
-           </div>
+               <div className="absolute bottom-4 text-white/80 text-xs bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm z-10">
+                 名刺を枠内に合わせてください
+               </div>
+             </>
+           )}
         </div>
 
         {/* Capture Actions */}
         <div className="flex gap-2 p-3 justify-center bg-white border-b overflow-x-auto">
-           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
+           <Button 
+             variant="secondary" 
+             onClick={takePhoto}
+             className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
+           >
              <Camera className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">名刺</span>
            </Button>
