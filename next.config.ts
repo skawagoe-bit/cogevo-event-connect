@@ -13,6 +13,19 @@ const nextConfig: NextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=*', 
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

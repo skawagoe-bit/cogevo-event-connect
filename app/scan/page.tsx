@@ -22,17 +22,20 @@ export default function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize camera
   const startCamera = useCallback(async () => {
     try {
+      setErrorMessage(null);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode }
+        video: { facingMode: facingMode },
+        audio: false
       });
       
       streamRef.current = stream;
@@ -40,9 +43,10 @@ export default function ScanPage() {
         videoRef.current.srcObject = stream;
       }
       setHasCameraPermission(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
+      setErrorMessage(err.message || "Unknown error");
     }
   }, [facingMode]);
 
@@ -151,11 +155,19 @@ export default function ScanPage() {
                className="absolute inset-0 w-full h-full object-cover"
              />
            ) : (
-             <div className="text-gray-400 flex flex-col items-center animate-pulse">
+             <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center">
                <Camera className="w-12 h-12 mb-3 opacity-50" />
-               <span className="text-sm font-medium tracking-wide">
-                 {hasCameraPermission === false ? "カメラへのアクセスが拒否されました" : "カメラを起動中..."}
+               <span className="text-sm font-medium tracking-wide mb-2">
+                 {hasCameraPermission === false ? "カメラへのアクセスができません" : "カメラを起動中..."}
                </span>
+               {errorMessage && (
+                 <span className="text-xs text-red-400 mb-4 block max-w-[200px] break-words">{errorMessage}</span>
+               )}
+               {hasCameraPermission === false && (
+                 <Button onClick={() => startCamera()} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
+                   再試行
+                 </Button>
+               )}
              </div>
            )}
            
