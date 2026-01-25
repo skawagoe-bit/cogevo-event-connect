@@ -219,27 +219,56 @@ export default function ScanPage() {
             recognition.lang = 'ja-JP';
             recognition.continuous = true;
             recognition.interimResults = true;
+            recognition.maxAlternatives = 1; // Add this for stability
+
+            recognition.onstart = () => {
+                console.log("Speech recognition started");
+            };
 
             recognition.onresult = (event: any) => {
+                let interimTranscript = '';
                 let finalTranscript = '';
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
                     }
                 }
+                
                 if (finalTranscript) {
                     setTranscriptText(prev => (prev ? prev + ' ' : '') + finalTranscript);
+                }
+                
+                // 暫定結果の表示用Stateがあれば更新するが、今回はシンプルにtranscriptTextには確定結果のみ、
+                // あるいは暫定結果を一時的に表示するUIが必要かもしれない。
+                // 簡易的に、編集中でなければ暫定結果も表示するように工夫する。
+                // しかし、setTranscriptTextに追記していく方式だと暫定結果の扱いは難しい。
+                // 確実なのは「確定した結果」のみを追記していくこと。
+                // ユーザー体験向上のため、interimTranscriptがある場合はconsoleに出すか、別Stateで管理する。
+                if (interimTranscript) {
+                    console.log("Interim:", interimTranscript);
                 }
             };
 
             recognition.onerror = (event: any) => {
                 console.error("Speech recognition error", event.error);
+                if (event.error === 'not-allowed') {
+                    alert("音声認識へのアクセスが許可されていません");
+                }
+            };
+
+            recognition.onend = () => {
+                console.log("Speech recognition ended");
+                // 録音が続いているのに認識が止まった場合は再開するロジックが必要だが、今回は簡易実装
             };
 
             recognitionRef.current = recognition;
             recognition.start();
         } else {
             console.warn("Web Speech API not supported in this browser");
+            alert("このブラウザは音声認識に対応していません");
         }
 
         setIsRecordingMemo(true);
