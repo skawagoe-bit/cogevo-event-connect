@@ -1,25 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, BarChart3 } from "lucide-react";
+import { Plus, X, BarChart3, ChevronDown, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/app/providers";
+import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
+
+type Event = {
+  id: string;
+  name: string;
+  event_date: string;
+};
 
 export default function PresetPage() {
   const router = useRouter();
   const { 
     eventName, setEventName, 
+    eventId, setEventId,
     attributes, addAttribute, removeAttribute,
     segments, addSegment, removeSegment,
     roles, addRole, removeRole
   } = useSettings();
   
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const [newAttribute, setNewAttribute] = useState("");
   const [newSegment, setNewSegment] = useState("");
   const [newRole, setNewRole] = useState("");
   
+  // Fetch events on mount
+  useEffect(() => {
+    const fetchEvents = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, name, event_date')
+        .order('event_date', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching events:", error);
+      } else {
+        setEvents(data || []);
+      }
+      setIsLoadingEvents(false);
+    };
+
+    fetchEvents();
+  }, []);
+
+  const handleSelectEvent = (event: Event) => {
+    setEventId(event.id);
+    setEventName(event.name);
+    setIsDropdownOpen(false);
+  };
+
   const handleStart = () => {
+    if (!eventId) {
+      alert("イベントを選択してください");
+      return;
+    }
     router.push("/scan");
   };
 
@@ -81,16 +124,49 @@ export default function PresetPage() {
       </header>
       
       <div className="space-y-8 flex-1 overflow-y-auto pb-6">
-        {/* Event Name */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-gray-700">イベント名</label>
-          <input
-            type="text"
-            className="w-full p-4 border border-gray-300 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
-            value={eventName}
-            onChange={(e) => setEventName(e.target.value)}
-            placeholder="イベント名を入力"
-          />
+        {/* Event Selection */}
+        <div className="space-y-2 relative">
+          <label className="block text-sm font-bold text-gray-700">イベント選択 <span className="text-red-500">*</span></label>
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={cn(
+                "w-full p-4 text-left border rounded-xl text-lg flex justify-between items-center transition-all shadow-sm bg-white",
+                isDropdownOpen ? "border-primary ring-2 ring-primary/20" : "border-gray-300 hover:border-gray-400",
+                !eventId && "text-gray-400"
+              )}
+            >
+              <span className="truncate pr-2">{eventName || "イベントを選択してください"}</span>
+              <ChevronDown className={cn("w-5 h-5 text-gray-400 transition-transform", isDropdownOpen && "rotate-180")} />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-20 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                {isLoadingEvents ? (
+                  <div className="p-4 text-center text-gray-400 text-sm">読み込み中...</div>
+                ) : events.length === 0 ? (
+                  <div className="p-4 text-center text-gray-400 text-sm">開催中のイベントはありません</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {events.map((event) => (
+                      <button
+                        key={event.id}
+                        onClick={() => handleSelectEvent(event)}
+                        className="w-full text-left p-4 hover:bg-gray-50 transition-colors flex flex-col gap-1"
+                      >
+                        <span className="font-bold text-gray-800 block truncate">{event.name}</span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {event.event_date}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {isDropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)} />}
         </div>
 
         {/* Attribute Management */}
@@ -237,8 +313,13 @@ export default function PresetPage() {
       </div>
 
       <div className="mt-auto pt-4 bg-gray-50/50 sticky bottom-0">
-        <Button size="lg" className="w-full text-lg shadow-lg" onClick={handleStart}>
-          設定を完了して開始
+        <Button 
+          size="lg" 
+          className="w-full text-lg shadow-lg" 
+          onClick={handleStart}
+          disabled={!eventId}
+        >
+          {eventId ? "設定を完了して開始" : "イベントを選択してください"}
         </Button>
       </div>
     </div>

@@ -6,6 +6,8 @@ import { attributes as defaultAttributes, segments as defaultSegments, roles as 
 type SettingsContextType = {
   eventName: string;
   setEventName: (name: string) => void;
+  eventId: string | null;
+  setEventId: (id: string | null) => void;
   attributes: string[];
   setAttributes: (attrs: string[]) => void;
   addAttribute: (attr: string) => void;
@@ -24,6 +26,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [eventName, setEventName] = useState("第57回日本作業療法学会");
+  const [eventId, setEventId] = useState<string | null>(null);
   const [attributes, setAttributes] = useState<string[]>([...defaultAttributes]);
   const [segments, setSegments] = useState<string[]>([...defaultSegments]);
   const [roles, setRoles] = useState<string[]>([...defaultRoles]);
@@ -31,12 +34,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Load from localStorage on mount
   useEffect(() => {
     const savedEventName = localStorage.getItem("eventName");
+    const savedEventId = localStorage.getItem("eventId");
     const savedAttributes = localStorage.getItem("attributes");
     const savedSegments = localStorage.getItem("segments");
     const savedRoles = localStorage.getItem("roles");
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedEventName) setEventName(savedEventName);
+    if (savedEventId) setEventId(savedEventId);
     
     if (savedAttributes) {
         try {
@@ -66,7 +71,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Save to localStorage on change
   useEffect(() => {
     localStorage.setItem("eventName", eventName);
-  }, [eventName]);
+    if (eventId) localStorage.setItem("eventId", eventId);
+  }, [eventName, eventId]);
 
   useEffect(() => {
     localStorage.setItem("attributes", JSON.stringify(attributes));
@@ -115,6 +121,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       value={{
         eventName,
         setEventName,
+        eventId,
+        setEventId,
         attributes,
         setAttributes,
         addAttribute,

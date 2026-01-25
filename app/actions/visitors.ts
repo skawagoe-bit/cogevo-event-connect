@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
+import { uploadBusinessCard } from '@/lib/sansan/client'
 
 // バリデーションスキーマ
 const createVisitorSchema = z.object({
@@ -13,6 +14,7 @@ const createVisitorSchema = z.object({
   email: z.string().email().nullable().optional().or(z.literal('')),
   attribute: z.string().min(1, '属性は必須です'),
   segment: z.string().nullable().optional(),
+  memo: z.string().nullable().optional(),
   image_url: z.string().nullable().optional(),
   audio_url: z.string().nullable().optional(),
 })
@@ -36,6 +38,7 @@ export async function createVisitor(formData: FormData) {
       email: formData.get('email'),
       attribute: formData.get('attribute'),
       segment: formData.get('segment'),
+      memo: formData.get('memo'),
       image_url: formData.get('image_url'),
       audio_url: formData.get('audio_url'),
     }
@@ -51,6 +54,7 @@ export async function createVisitor(formData: FormData) {
         email: validated.email || null,
         attribute: validated.attribute,
         segment: validated.segment || null,
+        memo: validated.memo || null,
         image_url: validated.image_url || null,
         audio_url: validated.audio_url || null,
         is_sent: false,
@@ -60,6 +64,23 @@ export async function createVisitor(formData: FormData) {
       .single()
 
     if (error) throw error
+
+    // Sansan連携 (非同期で実行・ログ出力のみ)
+    if (validated.image_url) {
+      // 将来的にはここで画像をfetchしてBlob化して渡す
+      console.log('[Sansan Sync] Triggering upload for visitor:', data.id)
+      
+      // 非同期で実行（awaitしない）
+      uploadBusinessCard({ 
+        file: new Blob([]), // Mock blob for now
+        tags: [validated.attribute, 'EventID:' + validated.event_id] 
+      }).then(res => {
+        if (res.success) {
+           console.log('[Sansan Sync] Success (Mock ID):', res.id)
+           // ここでvisitorsテーブルのsync_statusを更新する処理を入れるとさらに良い
+        }
+      }).catch(e => console.error('[Sansan Sync] Error:', e))
+    }
 
     revalidatePath('/list')
     return { success: true, data }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, QrCode, RefreshCcw, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -12,15 +12,14 @@ import { createVisitor } from "@/app/actions/visitors";
 
 export default function ScanPage() {
   const router = useRouter();
-  const { eventName, attributes, segments, roles } = useSettings();
+  const { eventName, eventId, attributes, segments, roles } = useSettings();
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [isRecordingMemo, setIsRecordingMemo] = useState(false);
-  const [memoDuration, setMemoDuration] = useState(0);
-  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  
+  // Memo
+  const [memoText, setMemoText] = useState("");
+  
   const [showQR, setShowQR] = useState(false);
   
   // Camera references
@@ -49,7 +48,6 @@ export default function ScanPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // 明示的に再生を開始（iOS対策）
         try {
           await videoRef.current.play();
         } catch (e) {
@@ -108,7 +106,6 @@ export default function ScanPage() {
     try {
       const supabase = createClient();
       let imageUrl = "";
-      let audioUrl = "";
 
       // 1. Upload Image
       if (capturedImage) {
@@ -126,30 +123,14 @@ export default function ScanPage() {
         imageUrl = publicUrl;
       }
 
-      // 2. Upload Audio
-      if (recordedAudio) {
-        const filename = `audio-${Date.now()}.webm`;
-        const { error } = await supabase.storage
-          .from('visitor-uploads')
-          .upload(filename, recordedAudio);
-        
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('visitor-uploads')
-          .getPublicUrl(filename);
-        audioUrl = publicUrl;
-      }
-
-      // 3. Register Data
+      // 2. Register Data
       const formData = new FormData();
-      // Use a fixed valid UUID for MVP. 
-      // In production, this should come from the selected event context.
-      formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
+      if (!eventId) throw new Error("イベントが選択されていません");
+      formData.append("event_id", eventId); 
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
-      if (audioUrl) formData.append("audio_url", audioUrl);
+      if (memoText) formData.append("memo", memoText); // Add text memo
 
       const result = await createVisitor(formData);
       
@@ -171,54 +152,6 @@ export default function ScanPage() {
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
-
-  const toggleRecording = async () => {
-    if (isRecordingMemo) {
-      // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-        setIsRecordingMemo(false);
-      }
-    } else {
-      // Start recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        audioChunksRef.current = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          setRecordedAudio(audioBlob);
-          stream.getTracks().forEach(track => track.stop());
-          alert("商談メモを保存しました");
-        };
-
-        mediaRecorder.start();
-        setIsRecordingMemo(true);
-        setMemoDuration(0);
-      } catch (err) {
-        console.error("Microphone error:", err);
-        alert("マイクへのアクセスが許可されていません");
-      }
-    }
-  };
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecordingMemo) {
-      interval = setInterval(() => {
-        setMemoDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecordingMemo]);
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -368,21 +301,24 @@ export default function ScanPage() {
              <Mic className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">入力</span>
            </Button>
-           <Button 
-             variant="secondary" 
-             onClick={toggleRecording}
-             className={cn(
-               "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm transition-all",
-               isRecordingMemo 
-                 ? "bg-red-50 border-red-200 animate-pulse" 
-                 : "bg-blue-50 border-blue-100 hover:bg-blue-100"
-             )}
-           >
-             <FileAudio className={cn("w-5 h-5", isRecordingMemo ? "text-red-500" : "text-blue-600")} />
-             <span className={cn("text-[10px] font-bold", isRecordingMemo ? "text-red-600" : "text-blue-700")}>
-               {isRecordingMemo ? `録音中 ${memoDuration}s` : "商談メモ"}
-             </span>
-           </Button>
+        </div>
+
+        {/* Memo Area (Always Visible) */}
+        <div className="px-5 pt-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative transition-all duration-300">
+                <div className="flex justify-between items-start mb-2">
+                    <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                        <Edit2 className="w-3 h-3" /> 商談メモ
+                    </label>
+                </div>
+                
+                <textarea
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[100px] placeholder:text-gray-400"
+                    value={memoText}
+                    onChange={(e) => setMemoText(e.target.value)}
+                    placeholder="タップして入力（キーボードのマイク機能も使えます）"
+                />
+            </div>
         </div>
 
         {/* Form Controls */}
@@ -422,8 +358,6 @@ export default function ScanPage() {
                    className={cn(
                      "py-2 px-3 rounded-full text-sm font-bold border transition-all duration-200 shadow-sm",
                      selectedRoles.includes(role)
-                       ? "bg-purple-100 border-purple-200 text-purple-700 shadow-inner" 
-                       : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
                    )}
                  >
                    {role}
