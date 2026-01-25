@@ -12,7 +12,7 @@ import { createVisitor } from "@/app/actions/visitors";
 
 export default function ScanPage() {
   const router = useRouter();
-  const { eventName, attributes, segments, roles } = useSettings();
+  const { eventName, eventId, attributes, segments, roles } = useSettings();
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -143,9 +143,9 @@ export default function ScanPage() {
 
       // 3. Register Data
       const formData = new FormData();
-      // Use a fixed valid UUID for MVP. 
-      // In production, this should come from the selected event context.
-      formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
+      // Use the selected event ID from context
+      if (!eventId) throw new Error("イベントが選択されていません");
+      formData.append("event_id", eventId); 
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
