@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Edit2, Check } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, QrCode, RefreshCcw, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -17,17 +17,9 @@ export default function ScanPage() {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   
-  // Audio & Speech Recognition
-  const [isRecordingMemo, setIsRecordingMemo] = useState(false);
-  const [memoDuration, setMemoDuration] = useState(0);
-  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
-  const [transcribedText, setTranscriptText] = useState("");
-  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  // Memo
+  const [memoText, setMemoText] = useState("");
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<any>(null); // Web Speech API
-
   const [showQR, setShowQR] = useState(false);
   
   // Camera references
@@ -114,7 +106,6 @@ export default function ScanPage() {
     try {
       const supabase = createClient();
       let imageUrl = "";
-      let audioUrl = "";
 
       // 1. Upload Image
       if (capturedImage) {
@@ -132,30 +123,14 @@ export default function ScanPage() {
         imageUrl = publicUrl;
       }
 
-      // 2. Upload Audio
-      if (recordedAudio) {
-        const filename = `audio-${Date.now()}.webm`;
-        const { error } = await supabase.storage
-          .from('visitor-uploads')
-          .upload(filename, recordedAudio);
-        
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('visitor-uploads')
-          .getPublicUrl(filename);
-        audioUrl = publicUrl;
-      }
-
-      // 3. Register Data
+      // 2. Register Data
       const formData = new FormData();
       if (!eventId) throw new Error("イベントが選択されていません");
       formData.append("event_id", eventId); 
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
-      if (audioUrl) formData.append("audio_url", audioUrl);
-      if (transcribedText) formData.append("memo", transcribedText); // Add text memo
+      if (memoText) formData.append("memo", memoText); // Add text memo
 
       const result = await createVisitor(formData);
       
@@ -177,102 +152,6 @@ export default function ScanPage() {
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
-
-  const [status, setStatus] = useState<string>("待機中"); // Debug status
-
-  const toggleRecording = async () => {
-    if (isRecordingMemo) {
-      // Stop recording
-      if (recognitionRef.current) {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.stop();
-      }
-      setIsRecordingMemo(false);
-      setStatus("停止");
-    } else {
-      setStatus("初期化中...");
-      try {
-        // Web Speech API Setup
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 1;
-
-            recognition.onstart = () => {
-                console.log("Speech recognition started");
-                setStatus("認識中...お話しください");
-            };
-
-            recognition.onresult = (event: any) => {
-                let finalTranscript = '';
-                let interimTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-                
-                if (finalTranscript) {
-                    setTranscriptText(prev => (prev ? prev + ' ' : '') + finalTranscript);
-                }
-                
-                if (interimTranscript) {
-                    setStatus("聞き取っています: " + interimTranscript);
-                } else {
-                    setStatus("認識中...");
-                }
-            };
-
-            recognition.onerror = (event: any) => {
-                console.error("Speech recognition error", event.error);
-                setStatus("エラー: " + event.error);
-            };
-
-            recognition.onend = () => {
-                console.log("Speech recognition ended");
-                setStatus("一時停止");
-                // Auto-restart if we are still recording
-                if (isRecordingMemo && recognitionRef.current) {
-                    try {
-                        recognitionRef.current.start();
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-            };
-
-            recognitionRef.current = recognition;
-            recognition.start();
-            
-            setIsRecordingMemo(true);
-            setMemoDuration(0);
-        } else {
-            setStatus("非対応ブラウザです");
-            alert("このブラウザは音声認識に対応していません");
-        }
-      } catch (err: any) {
-        console.error("Microphone error:", err);
-        setStatus("マイクエラー: " + err.message);
-        alert("マイクへのアクセスが許可されていません");
-      }
-    }
-  };
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecordingMemo) {
-      interval = setInterval(() => {
-        setMemoDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecordingMemo]);
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -422,72 +301,25 @@ export default function ScanPage() {
              <Mic className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">入力</span>
            </Button>
-           <Button 
-             variant="secondary" 
-             onClick={toggleRecording}
-             className={cn(
-               "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm transition-all",
-               isRecordingMemo 
-                 ? "bg-red-50 border-red-200 animate-pulse" 
-                 : "bg-blue-50 border-blue-100 hover:bg-blue-100"
-             )}
-           >
-             <FileAudio className={cn("w-5 h-5", isRecordingMemo ? "text-red-500" : "text-blue-600")} />
-             <span className={cn("text-[10px] font-bold", isRecordingMemo ? "text-red-600" : "text-blue-700")}>
-               {isRecordingMemo ? `録音中 ${memoDuration}s` : "商談メモ"}
-             </span>
-           </Button>
         </div>
 
-        {/* Memo Realtime Area */}
-        {(isRecordingMemo || transcribedText) && (
-            <div className="px-5 pt-4 animate-in fade-in slide-in-from-top-4">
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 shadow-sm relative">
-                    <div className="flex justify-between items-start mb-2">
-                        <label className="text-xs font-bold text-orange-700 flex items-center gap-1">
-                            {isRecordingMemo ? (
-                                <><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> 録音・文字起こし中...</>
-                            ) : (
-                                <><Check className="w-3 h-3" /> 文字起こし完了</>
-                            )}
-                        </label>
-                        {!isRecordingMemo && (
-                            <button 
-                                onClick={() => setIsEditingMemo(!isEditingMemo)}
-                                className="text-orange-600 hover:bg-orange-100 p-1 rounded transition-colors"
-                            >
-                                <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                        )}
-                    </div>
-                    
-                    {isEditingMemo ? (
-                        <textarea
-                            className="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-200 min-h-[80px]"
-                            value={transcribedText}
-                            onChange={(e) => setTranscriptText(e.target.value)}
-                            placeholder="メモを入力..."
-                        />
-                    ) : (
-                        <div className="text-sm text-gray-800 whitespace-pre-wrap min-h-[20px]">
-                            {transcribedText || <span className="text-gray-400 italic">（音声認識待機中...）</span>}
-                        </div>
-                    )}
-                    
-                    {isEditingMemo && (
-                        <div className="mt-2 text-right">
-                            <Button 
-                                size="sm" 
-                                className="h-7 text-xs bg-orange-600 hover:bg-orange-700 text-white"
-                                onClick={() => setIsEditingMemo(false)}
-                            >
-                                完了
-                            </Button>
-                        </div>
-                    )}
+        {/* Memo Area (Always Visible) */}
+        <div className="px-5 pt-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative transition-all duration-300">
+                <div className="flex justify-between items-start mb-2">
+                    <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                        <Edit2 className="w-3 h-3" /> 商談メモ
+                    </label>
                 </div>
+                
+                <textarea
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[100px] placeholder:text-gray-400"
+                    value={memoText}
+                    onChange={(e) => setMemoText(e.target.value)}
+                    placeholder="タップして入力（キーボードのマイク機能も使えます）"
+                />
             </div>
-        )}
+        </div>
 
         {/* Form Controls */}
         <div className="p-5 space-y-6">
