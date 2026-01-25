@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
 import { uploadBusinessCard } from '@/lib/sansan/client'
+import { addContactToUtage } from '@/lib/utage/client'
 
 // バリデーションスキーマ
 const createVisitorSchema = z.object({
@@ -80,6 +81,20 @@ export async function createVisitor(formData: FormData) {
            // ここでvisitorsテーブルのsync_statusを更新する処理を入れるとさらに良い
         }
       }).catch(e => console.error('[Sansan Sync] Error:', e))
+    }
+
+    // UTAGE連携 (メールアドレスがある場合のみ)
+    if (validated.email) {
+        console.log('[Utage Sync] Triggering contact add for:', validated.email)
+        addContactToUtage({
+            email: validated.email,
+            name: validated.name || undefined,
+            tags: [validated.attribute, 'EventID:' + validated.event_id]
+        }).then(res => {
+            if (res.success) {
+                console.log('[Utage Sync] Success')
+            }
+        }).catch(e => console.error('[Utage Sync] Error:', e))
     }
 
     revalidatePath('/list')
