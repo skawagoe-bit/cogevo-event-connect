@@ -178,22 +178,20 @@ export default function ScanPage() {
     );
   };
 
+  const [status, setStatus] = useState<string>("待機中"); // Debug status
+
   const toggleRecording = async () => {
     if (isRecordingMemo) {
       // Stop recording
       if (recognitionRef.current) {
-        recognitionRef.current.onend = null; // Prevent auto-restart
+        recognitionRef.current.onend = null;
         recognitionRef.current.stop();
       }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
       setIsRecordingMemo(false);
+      setStatus("停止");
     } else {
-      // Start recording
+      setStatus("初期化中...");
       try {
-        // MediaRecorder setup removed to prioritize SpeechRecognition on iOS
-        
         // Web Speech API Setup
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -205,26 +203,40 @@ export default function ScanPage() {
 
             recognition.onstart = () => {
                 console.log("Speech recognition started");
+                setStatus("認識中...お話しください");
             };
 
             recognition.onresult = (event: any) => {
                 let finalTranscript = '';
+                let interimTranscript = '';
+                
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
                     }
                 }
+                
                 if (finalTranscript) {
                     setTranscriptText(prev => (prev ? prev + ' ' : '') + finalTranscript);
+                }
+                
+                if (interimTranscript) {
+                    setStatus("聞き取っています: " + interimTranscript);
+                } else {
+                    setStatus("認識中...");
                 }
             };
 
             recognition.onerror = (event: any) => {
                 console.error("Speech recognition error", event.error);
+                setStatus("エラー: " + event.error);
             };
 
             recognition.onend = () => {
                 console.log("Speech recognition ended");
+                setStatus("一時停止");
                 // Auto-restart if we are still recording
                 if (isRecordingMemo && recognitionRef.current) {
                     try {
@@ -241,11 +253,12 @@ export default function ScanPage() {
             setIsRecordingMemo(true);
             setMemoDuration(0);
         } else {
-            console.warn("Web Speech API not supported in this browser");
+            setStatus("非対応ブラウザです");
             alert("このブラウザは音声認識に対応していません");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Microphone error:", err);
+        setStatus("マイクエラー: " + err.message);
         alert("マイクへのアクセスが許可されていません");
       }
     }
