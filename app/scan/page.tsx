@@ -192,9 +192,9 @@ export default function ScanPage() {
     } else {
       // Start recording
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // MediaRecorder setup removed to prioritize SpeechRecognition on iOS
         
-        // 1. Web Speech API Setup (Start FIRST to prioritize recognition resource)
+        // Web Speech API Setup
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
@@ -221,50 +221,29 @@ export default function ScanPage() {
 
             recognition.onerror = (event: any) => {
                 console.error("Speech recognition error", event.error);
-                // Don't alert here to avoid blocking UI during recording
             };
 
             recognition.onend = () => {
                 console.log("Speech recognition ended");
-                // Auto-restart if we are still recording (simple implementation)
+                // Auto-restart if we are still recording
                 if (isRecordingMemo && recognitionRef.current) {
                     try {
                         recognitionRef.current.start();
                     } catch (e) {
-                        // ignore error if already started
+                        // ignore
                     }
                 }
             };
 
             recognitionRef.current = recognition;
-            try {
-                recognition.start();
-            } catch (e) {
-                console.warn("Failed to start recognition:", e);
-            }
+            recognition.start();
+            
+            setIsRecordingMemo(true);
+            setMemoDuration(0);
+        } else {
+            console.warn("Web Speech API not supported in this browser");
+            alert("このブラウザは音声認識に対応していません");
         }
-
-        // 2. MediaRecorder Setup (Start AFTER Speech API)
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        audioChunksRef.current = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          setRecordedAudio(audioBlob);
-          stream.getTracks().forEach(track => track.stop());
-        };
-
-        mediaRecorder.start();
-
-        setIsRecordingMemo(true);
-        setMemoDuration(0);
       } catch (err) {
         console.error("Microphone error:", err);
         alert("マイクへのアクセスが許可されていません");
