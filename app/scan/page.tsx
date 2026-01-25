@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -16,11 +16,18 @@ export default function ScanPage() {
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  
+  // Audio & Speech Recognition
   const [isRecordingMemo, setIsRecordingMemo] = useState(false);
   const [memoDuration, setMemoDuration] = useState(0);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const [transcribedText, setTranscriptText] = useState("");
+  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null); // Web Speech API
+
   const [showQR, setShowQR] = useState(false);
   
   // Camera references
@@ -49,7 +56,6 @@ export default function ScanPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // 明示的に再生を開始（iOS対策）
         try {
           await videoRef.current.play();
         } catch (e) {
@@ -143,13 +149,13 @@ export default function ScanPage() {
 
       // 3. Register Data
       const formData = new FormData();
-      // Use the selected event ID from context
       if (!eventId) throw new Error("イベントが選択されていません");
       formData.append("event_id", eventId); 
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
       if (audioUrl) formData.append("audio_url", audioUrl);
+      if (transcribedText) formData.append("memo", transcribedText); // Add text memo
 
       const result = await createVisitor(formData);
       
@@ -177,12 +183,17 @@ export default function ScanPage() {
       // Stop recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
-        setIsRecordingMemo(false);
       }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecordingMemo(false);
     } else {
       // Start recording
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // 1. MediaRecorder Setup
         const mediaRecorder = new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
         audioChunksRef.current = [];
@@ -197,12 +208,44 @@ export default function ScanPage() {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           setRecordedAudio(audioBlob);
           stream.getTracks().forEach(track => track.stop());
-          alert("商談メモを保存しました");
         };
 
         mediaRecorder.start();
+
+        // 2. Web Speech API Setup
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event: any) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    setTranscriptText(prev => (prev ? prev + ' ' : '') + finalTranscript);
+                }
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+            };
+
+            recognitionRef.current = recognition;
+            recognition.start();
+        } else {
+            console.warn("Web Speech API not supported in this browser");
+        }
+
         setIsRecordingMemo(true);
         setMemoDuration(0);
+        // If restarting recording, maybe we keep previous text? Or clear?
+        // Let's keep it for appending.
       } catch (err) {
         console.error("Microphone error:", err);
         alert("マイクへのアクセスが許可されていません");
@@ -385,6 +428,56 @@ export default function ScanPage() {
            </Button>
         </div>
 
+        {/* Memo Realtime Area */}
+        {(isRecordingMemo || transcribedText) && (
+            <div className="px-5 pt-4 animate-in fade-in slide-in-from-top-4">
+                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 shadow-sm relative">
+                    <div className="flex justify-between items-start mb-2">
+                        <label className="text-xs font-bold text-orange-700 flex items-center gap-1">
+                            {isRecordingMemo ? (
+                                <><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> 録音・文字起こし中...</>
+                            ) : (
+                                <><Check className="w-3 h-3" /> 文字起こし完了</>
+                            )}
+                        </label>
+                        {!isRecordingMemo && (
+                            <button 
+                                onClick={() => setIsEditingMemo(!isEditingMemo)}
+                                className="text-orange-600 hover:bg-orange-100 p-1 rounded transition-colors"
+                            >
+                                <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    
+                    {isEditingMemo ? (
+                        <textarea
+                            className="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-200 min-h-[80px]"
+                            value={transcribedText}
+                            onChange={(e) => setTranscriptText(e.target.value)}
+                            placeholder="メモを入力..."
+                        />
+                    ) : (
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap min-h-[20px]">
+                            {transcribedText || <span className="text-gray-400 italic">（音声認識待機中...）</span>}
+                        </div>
+                    )}
+                    
+                    {isEditingMemo && (
+                        <div className="mt-2 text-right">
+                            <Button 
+                                size="sm" 
+                                className="h-7 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                                onClick={() => setIsEditingMemo(false)}
+                            >
+                                完了
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
         {/* Form Controls */}
         <div className="p-5 space-y-6">
            <div className="space-y-3">
@@ -422,8 +515,6 @@ export default function ScanPage() {
                    className={cn(
                      "py-2 px-3 rounded-full text-sm font-bold border transition-all duration-200 shadow-sm",
                      selectedRoles.includes(role)
-                       ? "bg-purple-100 border-purple-200 text-purple-700 shadow-inner" 
-                       : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
                    )}
                  >
                    {role}

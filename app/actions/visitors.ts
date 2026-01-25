@@ -13,6 +13,7 @@ const createVisitorSchema = z.object({
   email: z.string().email().nullable().optional().or(z.literal('')),
   attribute: z.string().min(1, '属性は必須です'),
   segment: z.string().nullable().optional(),
+  memo: z.string().nullable().optional(),
   image_url: z.string().nullable().optional(),
   audio_url: z.string().nullable().optional(),
 })
@@ -36,6 +37,7 @@ export async function createVisitor(formData: FormData) {
       email: formData.get('email'),
       attribute: formData.get('attribute'),
       segment: formData.get('segment'),
+      memo: formData.get('memo'),
       image_url: formData.get('image_url'),
       audio_url: formData.get('audio_url'),
     }
@@ -51,6 +53,7 @@ export async function createVisitor(formData: FormData) {
         email: validated.email || null,
         attribute: validated.attribute,
         segment: validated.segment || null,
+        memo: validated.memo || null,
         image_url: validated.image_url || null,
         audio_url: validated.audio_url || null,
         is_sent: false,
