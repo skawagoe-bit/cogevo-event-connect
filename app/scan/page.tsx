@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2 } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -462,25 +462,27 @@ export default function ScanPage() {
              </div>
            )}
 
-           <label className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-2">
-             商談メモ <span className="text-xs text-gray-400 font-normal">音声入力 または キーボード入力</span>
-           </label>
-           <div className="relative">
-             <textarea
-               value={memoText}
-               onChange={(e) => setMemoText(e.target.value)}
-               className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
-               rows={3}
-               placeholder="ここをタップして入力、または上の「音声入力」ボタンを押して話してください"
-             />
-             {memoText && (
-               <button 
-                 onClick={() => setMemoText("")}
-                 className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 bg-yellow-50/80 rounded-full p-1"
-               >
-                 <Settings className="w-4 h-4 rotate-45" />
-               </button>
-             )}
+           <div className="bg-yellow-50/50 p-3 rounded-xl border border-yellow-100">
+             <label className="text-xs font-bold text-gray-500 flex items-center gap-2 mb-2 uppercase tracking-wide">
+               <FileAudio className="w-3 h-3" />
+               商談メモ
+             </label>
+             <div className="relative">
+               <textarea
+                 value={memoText}
+                 onChange={(e) => setMemoText(e.target.value)}
+                 className="w-full p-3 bg-white border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all min-h-[80px]"
+                 placeholder="テキスト入力、または上の「音声入力」ボタンで記録..."
+               />
+               {memoText && (
+                 <button 
+                   onClick={() => setMemoText("")}
+                   className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-1"
+                 >
+                   <X className="w-3 h-3" />
+                 </button>
+               )}
+             </div>
            </div>
         </div>
 
