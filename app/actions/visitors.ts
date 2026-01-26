@@ -71,6 +71,13 @@ export async function createVisitor(formData: FormData) {
     return { success: true, data }
   } catch (error: any) {
     console.error('Create visitor error:', error)
+    return { 
+      success: false, 
+      error: error.message || '訪問者の登録に失敗しました' 
+    }
+  }
+}
+
 export async function getVisitors(eventId: string) {
   try {
     const { userId } = await auth()
