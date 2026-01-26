@@ -62,15 +62,18 @@ export async function createVisitor(formData: FormData) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase insert error:', error)
+      throw new Error(error.message || 'Database error')
+    }
 
     revalidatePath('/list')
     return { success: true, data }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create visitor error:', error)
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : '訪問者の登録に失敗しました' 
+      error: error.message || '訪問者の登録に失敗しました' 
     }
   }
 }
