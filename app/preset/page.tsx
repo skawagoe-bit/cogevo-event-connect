@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X, BarChart3, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/app/providers";
-import { createClient } from "@/lib/supabase/client";
+import { getEventsByMonth } from "@/app/actions/events";
 
 export default function PresetPage() {
   const router = useRouter();
@@ -25,24 +25,14 @@ export default function PresetPage() {
   // Fetch events when month changes
   useEffect(() => {
     const fetchEvents = async () => {
-      const supabase = createClient();
-      
-      // Calculate start and end of the month
-      const [year, month] = targetMonth.split('-').map(Number);
-      const startDate = new Date(year, month - 1, 1).toISOString();
-      const endDate = new Date(year, month, 0).toISOString();
+      // Use Server Action instead of client-side fetch to avoid RLS issues
+      const result = await getEventsByMonth(targetMonth);
 
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .gte('event_date', startDate)
-        .lte('event_date', endDate)
-        .order('event_date', { ascending: true });
-
-      if (error) {
-        console.error("Error fetching events:", error);
+      if (result.success) {
+        setEvents(result.data || []);
       } else {
-        setEvents(data || []);
+        console.error("Error fetching events:", result.error);
+        setEvents([]);
       }
     };
 
@@ -80,15 +70,26 @@ export default function PresetPage() {
             <h2 className="text-2xl font-bold text-gray-800">イベント選択</h2>
             <p className="text-gray-500 text-sm">参加するイベントを選択してください</p>
         </div>
-        <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-white h-9"
-            onClick={() => router.push('/dashboard')}
-        >
-            <BarChart3 className="w-4 h-4 mr-1 text-primary" />
-            速報
-        </Button>
+        <div className="flex gap-2">
+            <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs bg-white h-9"
+                onClick={() => router.push('/admin/events')}
+            >
+                <Settings className="w-4 h-4 mr-1 text-gray-500" />
+                管理
+            </Button>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs bg-white h-9"
+                onClick={() => router.push('/dashboard')}
+            >
+                <BarChart3 className="w-4 h-4 mr-1 text-primary" />
+                速報
+            </Button>
+        </div>
       </header>
       
       <div className="space-y-8 flex-1 overflow-y-auto pb-6">

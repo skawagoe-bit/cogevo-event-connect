@@ -1,4 +1,3 @@
-
 "use server"
 
 import { createClient } from '@supabase/supabase-js'
@@ -70,29 +69,123 @@ export async function createEvent(formData: FormData) {
   }
 }
 
-export async function getEventsByMonth(year: number, month: number) {
+export async function updateEvent(id: string, formData: FormData) {
   try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // 月初と月末の日付を計算
-    const startDate = new Date(year, month - 1, 1).toISOString();
-    const endDate = new Date(year, month, 0).toISOString();
+    const rawData = {
+      name: formData.get('name'),
+      event_date: formData.get('event_date'),
+      attributes_preset: formData.get('attributes_preset') 
+        ? JSON.parse(formData.get('attributes_preset') as string)
+        : undefined,
+      segments_preset: formData.get('segments_preset')
+        ? JSON.parse(formData.get('segments_preset') as string)
+        : undefined,
+      roles_preset: formData.get('roles_preset')
+        ? JSON.parse(formData.get('roles_preset') as string)
+        : undefined,
+    }
+
+    const validated = eventSchema.parse(rawData)
 
     const { data, error } = await supabase
       .from('events')
-      .select('*')
-      .gte('event_date', startDate)
-      .lte('event_date', endDate)
-      .order('event_date', { ascending: true })
+      .update({
+        name: validated.name,
+        event_date: validated.event_date,
+        attributes_preset: validated.attributes_preset,
+        segments_preset: validated.segments_preset,
+        roles_preset: validated.roles_preset,
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
     if (error) throw error
 
     return { success: true, data }
   } catch (error: any) {
-    console.error('Get events error:', error)
+    console.error('Update event error:', error)
     return { success: false, error: error.message }
   }
 }
+
+export async function deleteEvent(id: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Delete event error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function getEventsByMonth(yearMonth: string) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error('認証が必要です');
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .like('event_date', `${yearMonth}-%`)
+      .order('event_date', { ascending: true });
+
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Get events by month error:', error);
+    return { success: false, error: error.message || 'イベントの取得に失敗しました' };
+  }
+}
+
+export async function getAllEvents() {
+    try {
+      const { userId } = await auth();
+      if (!userId) throw new Error('認証が必要です');
+  
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+  
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending: false });
+  
+      if (error) throw error;
+  
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Get all events error:', error);
+      return { success: false, error: error.message || 'イベントの取得に失敗しました' };
+    }
+  }
