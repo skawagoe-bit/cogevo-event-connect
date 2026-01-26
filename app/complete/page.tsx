@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Check, ArrowLeft, Gift } from "lucide-react";
+import { Check, ArrowLeft, Gift, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { getGifts, updateGiftStock } from "@/app/actions/gifts";
@@ -110,10 +110,19 @@ export default function CompletePage() {
           </div>
         )}
 
-        <div className="pt-4">
+        <div className="pt-4 space-y-3">
           <Button 
             variant="outline" 
-            className="w-full" 
+            className="w-full h-12" 
+            onClick={() => router.push('/list')}
+          >
+            <List className="w-4 h-4 mr-2" />
+            本日のリストを確認
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full text-gray-500" 
             onClick={() => router.push('/scan')}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
