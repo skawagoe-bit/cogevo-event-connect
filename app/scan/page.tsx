@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -17,6 +17,12 @@ export default function ScanPage() {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   
+  // OCR / Visitor Data State
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   // Voice Memo State
   const [memoText, setMemoText] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -166,6 +172,20 @@ export default function ScanPage() {
     }
   }, [isListening]);
 
+  const handleSansanMock = async () => {
+    setIsAnalyzing(true);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    // Mock Data
+    setName("山田 太郎");
+    setCompany("Sansan株式会社");
+    setEmail("taro.yamada@example.com");
+    
+    setIsAnalyzing(false);
+    alert("Sansanで名刺をデータ化しました");
+  };
+
   const handleRegister = async () => {
     if (!selectedAttribute) {
       alert("属性を選択してください");
@@ -197,6 +217,12 @@ export default function ScanPage() {
       // Use a fixed valid UUID for MVP. 
       // In production, this should come from the selected event context.
       formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
+      
+      // Basic Info
+      if (name) formData.append("name", name);
+      if (company) formData.append("company", company);
+      if (email) formData.append("email", email);
+
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
@@ -351,6 +377,28 @@ export default function ScanPage() {
                </div>
              </>
            )}
+           
+           {/* Sansan Analyze Button Overlay (Only when image captured) */}
+           {capturedImage && (
+             <div className="absolute bottom-4 right-4 z-20">
+               <Button 
+                 onClick={handleSansanMock} 
+                 disabled={isAnalyzing}
+                 className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-white/20"
+               >
+                 {isAnalyzing ? (
+                   <>
+                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                     解析中...
+                   </>
+                 ) : (
+                   <>
+                     <span className="font-bold">Sansanでデータ化</span>
+                   </>
+                 )}
+               </Button>
+             </div>
+           )}
         </div>
 
         {/* Capture Actions */}
@@ -387,6 +435,33 @@ export default function ScanPage() {
 
         {/* Memo Input Area (Always Visible) */}
         <div className="px-5 pt-4">
+           {/* Basic Info Inputs (Shown if filled or analyzing) */}
+           {(name || company || email || isAnalyzing) && (
+             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
+               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">名刺情報 (Sansan)</h3>
+               <div className="space-y-2">
+                 <input 
+                   value={company}
+                   onChange={(e) => setCompany(e.target.value)}
+                   placeholder="会社名"
+                   className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                 />
+                 <input 
+                   value={name}
+                   onChange={(e) => setName(e.target.value)}
+                   placeholder="氏名"
+                   className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                 />
+                 <input 
+                   value={email}
+                   onChange={(e) => setEmail(e.target.value)}
+                   placeholder="メールアドレス"
+                   className="w-full p-2 bg-white border border-blue-200 rounded text-xs text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                 />
+               </div>
+             </div>
+           )}
+
            <label className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-2">
              商談メモ <span className="text-xs text-gray-400 font-normal">音声入力 または キーボード入力</span>
            </label>
