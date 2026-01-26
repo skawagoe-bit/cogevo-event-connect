@@ -15,6 +15,7 @@ const createVisitorSchema = z.object({
   segment: z.string().nullable().optional(),
   image_url: z.string().nullable().optional(),
   audio_url: z.string().nullable().optional(),
+  memo: z.string().nullable().optional(),
 })
 
 export async function createVisitor(formData: FormData) {
@@ -38,6 +39,7 @@ export async function createVisitor(formData: FormData) {
       segment: formData.get('segment'),
       image_url: formData.get('image_url'),
       audio_url: formData.get('audio_url'),
+      memo: formData.get('memo'),
     }
 
     const validated = createVisitorSchema.parse(rawData)
@@ -53,6 +55,7 @@ export async function createVisitor(formData: FormData) {
         segment: validated.segment || null,
         image_url: validated.image_url || null,
         audio_url: validated.audio_url || null,
+        memo: validated.memo || null,
         is_sent: false,
         sync_status: 'pending'
       })

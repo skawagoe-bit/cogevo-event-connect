@@ -16,11 +16,12 @@ export default function ScanPage() {
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [isRecordingMemo, setIsRecordingMemo] = useState(false);
-  const [memoDuration, setMemoDuration] = useState(0);
-  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  
+  // Voice Memo State
+  const [memoText, setMemoText] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  
   const [showQR, setShowQR] = useState(false);
   
   // Camera references
@@ -39,12 +40,25 @@ export default function ScanPage() {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: facingMode === 'user' ? 'user' : { ideal: 'environment' },
-          audio: false
-        }
-      });
+      let stream: MediaStream;
+      try {
+        // Try to get exact environment camera first
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
+            audio: false
+          }
+        });
+      } catch (err) {
+        console.log("Exact facing mode failed, falling back to ideal/default");
+        // Fallback to ideal or just string
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: facingMode === 'user' ? 'user' : 'environment',
+            audio: false
+          }
+        });
+      }
       
       streamRef.current = stream;
       if (videoRef.current) {
@@ -71,6 +85,9 @@ export default function ScanPage() {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
       }
     };
   }, [startCamera, capturedImage]);
@@ -99,6 +116,56 @@ export default function ScanPage() {
     setCapturedImage(null);
   };
 
+  const toggleVoiceInput = useCallback(() => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+    } else {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("このブラウザは音声入力をサポートしていません");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          setMemoText(prev => prev + (prev ? " " : "") + finalTranscript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
+
   const handleRegister = async () => {
     if (!selectedAttribute) {
       alert("属性を選択してください");
@@ -108,7 +175,6 @@ export default function ScanPage() {
     try {
       const supabase = createClient();
       let imageUrl = "";
-      let audioUrl = "";
 
       // 1. Upload Image
       if (capturedImage) {
@@ -126,22 +192,7 @@ export default function ScanPage() {
         imageUrl = publicUrl;
       }
 
-      // 2. Upload Audio
-      if (recordedAudio) {
-        const filename = `audio-${Date.now()}.webm`;
-        const { error } = await supabase.storage
-          .from('visitor-uploads')
-          .upload(filename, recordedAudio);
-        
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('visitor-uploads')
-          .getPublicUrl(filename);
-        audioUrl = publicUrl;
-      }
-
-      // 3. Register Data
+      // 2. Register Data
       const formData = new FormData();
       // Use a fixed valid UUID for MVP. 
       // In production, this should come from the selected event context.
@@ -149,7 +200,7 @@ export default function ScanPage() {
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
-      if (audioUrl) formData.append("audio_url", audioUrl);
+      if (memoText) formData.append("memo", memoText);
 
       const result = await createVisitor(formData);
       
@@ -171,54 +222,6 @@ export default function ScanPage() {
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
-
-  const toggleRecording = async () => {
-    if (isRecordingMemo) {
-      // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-        setIsRecordingMemo(false);
-      }
-    } else {
-      // Start recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        audioChunksRef.current = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          setRecordedAudio(audioBlob);
-          stream.getTracks().forEach(track => track.stop());
-          alert("商談メモを保存しました");
-        };
-
-        mediaRecorder.start();
-        setIsRecordingMemo(true);
-        setMemoDuration(0);
-      } catch (err) {
-        console.error("Microphone error:", err);
-        alert("マイクへのアクセスが許可されていません");
-      }
-    }
-  };
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecordingMemo) {
-      interval = setInterval(() => {
-        setMemoDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecordingMemo]);
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -370,20 +373,41 @@ export default function ScanPage() {
            </Button>
            <Button 
              variant="secondary" 
-             onClick={toggleRecording}
+             onClick={toggleVoiceInput}
              className={cn(
                "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm transition-all",
-               isRecordingMemo 
+               isListening
                  ? "bg-red-50 border-red-200 animate-pulse" 
                  : "bg-blue-50 border-blue-100 hover:bg-blue-100"
              )}
            >
-             <FileAudio className={cn("w-5 h-5", isRecordingMemo ? "text-red-500" : "text-blue-600")} />
-             <span className={cn("text-[10px] font-bold", isRecordingMemo ? "text-red-600" : "text-blue-700")}>
-               {isRecordingMemo ? `録音中 ${memoDuration}s` : "商談メモ"}
+             <FileAudio className={cn("w-5 h-5", isListening ? "text-red-500" : "text-blue-600")} />
+             <span className={cn("text-[10px] font-bold", isListening ? "text-red-600" : "text-blue-700")}>
+               {isListening ? "録音中..." : "商談メモ"}
              </span>
            </Button>
         </div>
+
+        {/* Memo Input Area (New) */}
+        {memoText && (
+          <div className="px-5 pt-4">
+             <div className="relative">
+               <textarea
+                 value={memoText}
+                 onChange={(e) => setMemoText(e.target.value)}
+                 className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                 rows={3}
+                 placeholder="音声入力されたテキストがここに表示されます"
+               />
+               <button 
+                 onClick={() => setMemoText("")}
+                 className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+               >
+                 <Settings className="w-4 h-4 rotate-45" /> {/* Use X icon if imported, reusing Settings for now or import X */}
+               </button>
+             </div>
+          </div>
+        )}
 
         {/* Form Controls */}
         <div className="p-5 space-y-6">
