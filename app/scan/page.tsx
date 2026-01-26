@@ -367,10 +367,7 @@ export default function ScanPage() {
              <ImageIcon className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">バッジ</span>
            </Button>
-           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
-             <Mic className="w-5 h-5 text-gray-600" />
-             <span className="text-[10px] font-bold text-gray-600">入力</span>
-           </Button>
+           {/* Voice Input Button - Toggles Listening */}
            <Button 
              variant="secondary" 
              onClick={toggleVoiceInput}
@@ -381,33 +378,36 @@ export default function ScanPage() {
                  : "bg-blue-50 border-blue-100 hover:bg-blue-100"
              )}
            >
-             <FileAudio className={cn("w-5 h-5", isListening ? "text-red-500" : "text-blue-600")} />
+             <Mic className={cn("w-5 h-5", isListening ? "text-red-500" : "text-blue-600")} />
              <span className={cn("text-[10px] font-bold", isListening ? "text-red-600" : "text-blue-700")}>
-               {isListening ? "録音中..." : "商談メモ"}
+               {isListening ? "聞いています" : "音声入力"}
              </span>
            </Button>
         </div>
 
-        {/* Memo Input Area (New) */}
-        {memoText && (
-          <div className="px-5 pt-4">
-             <div className="relative">
-               <textarea
-                 value={memoText}
-                 onChange={(e) => setMemoText(e.target.value)}
-                 className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                 rows={3}
-                 placeholder="音声入力されたテキストがここに表示されます"
-               />
+        {/* Memo Input Area (Always Visible) */}
+        <div className="px-5 pt-4">
+           <label className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-2">
+             商談メモ <span className="text-xs text-gray-400 font-normal">音声入力 または キーボード入力</span>
+           </label>
+           <div className="relative">
+             <textarea
+               value={memoText}
+               onChange={(e) => setMemoText(e.target.value)}
+               className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
+               rows={3}
+               placeholder="ここをタップして入力、または上の「音声入力」ボタンを押して話してください"
+             />
+             {memoText && (
                <button 
                  onClick={() => setMemoText("")}
-                 className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                 className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 bg-yellow-50/80 rounded-full p-1"
                >
-                 <Settings className="w-4 h-4 rotate-45" /> {/* Use X icon if imported, reusing Settings for now or import X */}
+                 <Settings className="w-4 h-4 rotate-45" />
                </button>
-             </div>
-          </div>
-        )}
+             )}
+           </div>
+        </div>
 
         {/* Form Controls */}
         <div className="p-5 space-y-6">
