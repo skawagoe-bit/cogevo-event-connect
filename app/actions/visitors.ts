@@ -71,9 +71,30 @@ export async function createVisitor(formData: FormData) {
     return { success: true, data }
   } catch (error: any) {
     console.error('Create visitor error:', error)
+export async function getVisitors(eventId: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data, error } = await supabase
+      .from('visitors')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('scanned_at', { ascending: false })
+
+    if (error) throw error
+
+    return { success: true, data }
+  } catch (error: any) {
+    console.error('Get visitors error:', error)
     return { 
       success: false, 
-      error: error.message || '訪問者の登録に失敗しました' 
+      error: error.message || '訪問者リストの取得に失敗しました' 
     }
   }
 }

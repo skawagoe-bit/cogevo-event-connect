@@ -9,8 +9,11 @@ import { useSettings } from "@/app/providers";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import type { Database } from "@/lib/supabase/types";
+import { getVisitors } from "@/app/actions/visitors";
 
 type Visitor = Database['public']['Tables']['visitors']['Row'];
+
+const CURRENT_EVENT_ID = "123e4567-e89b-12d3-a456-426614174000";
 
 export default function ListPage() {
   const router = useRouter();
@@ -25,16 +28,13 @@ export default function ListPage() {
   // Initial data fetch
   useEffect(() => {
     const fetchVisitors = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('visitors')
-        .select('*')
-        .order('scanned_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching visitors:', error);
+      // Use Server Action to bypass RLS for the dummy event ID
+      const result = await getVisitors(CURRENT_EVENT_ID);
+      
+      if (result.success) {
+        setVisitors(result.data as Visitor[] || []);
       } else {
-        setVisitors(data || []);
+        console.error('Error fetching visitors:', result.error);
       }
       setIsLoading(false);
     };
