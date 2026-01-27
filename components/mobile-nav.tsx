@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { 
@@ -54,12 +54,16 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
     }
   }, [isOpen])
 
-  // パス変更時にメニューを閉じる
+  // パス変更時にメニューを閉じる（isOpenやonCloseの変更では発火させない）
+  const prevPathname = useRef(pathname)
   useEffect(() => {
-    if (isOpen) {
-      onClose()
+    if (prevPathname.current !== pathname) {
+      if (isOpen) {
+        onClose()
+      }
+      prevPathname.current = pathname
     }
-  }, [pathname, onClose, isOpen])
+  }, [pathname, isOpen, onClose])
 
   const handleSignOut = async () => {
     await signOut()
