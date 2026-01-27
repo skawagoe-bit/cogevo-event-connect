@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail } from "lucide-react";
+import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from "@/app/actions/events";
 
@@ -361,11 +361,56 @@ export default function AdminEventsPage() {
 
                 {selectedTemplateSegment && segments.includes(selectedTemplateSegment) && (
                     <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100 animate-in fade-in">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">
-                            {selectedTemplateSegment}
-                        </span>
-                        <span className="text-xs text-gray-500">用のテンプレート</span>
+import { generateEmailTemplate } from "@/app/actions/ai";
+import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail, Sparkles, Loader2 } from "lucide-react";
+
+// ... existing code ...
+
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // ... existing code ...
+
+  const handleGenerateTemplate = async () => {
+    if (!name || attributes.length === 0 || !selectedTemplateSegment) {
+      alert("AI生成には、イベント名、属性、顧客区分の情報が必要です。");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const result = await generateEmailTemplate(name, selectedTemplateSegment, attributes, roles);
+      if (result.success && result.data) {
+        handleTemplateChange(selectedTemplateSegment, 'subject', result.data.subject);
+        handleTemplateChange(selectedTemplateSegment, 'body', result.data.body);
+      } else {
+        alert("生成に失敗しました: " + result.error);
+      }
+    } catch (e: any) {
+      alert("エラーが発生しました: " + e.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // ... return ...
+
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">
+                                {selectedTemplateSegment}
+                            </span>
+                            <span className="text-xs text-gray-500">用のテンプレート</span>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-xs bg-white text-purple-600 border-purple-200 hover:bg-purple-50"
+                            onClick={handleGenerateTemplate}
+                            disabled={isGenerating}
+                        >
+                            {isGenerating ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                            AIで文案生成
+                        </Button>
                       </div>
                       <div>
                         <span className="text-xs font-bold text-gray-500 block mb-1">メール件名</span>
