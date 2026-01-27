@@ -102,11 +102,11 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
       {/* メニュー本体 */}
       <div 
         className={cn(
-          "absolute right-0 top-0 bottom-0 w-3/4 max-w-sm bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+          "absolute right-0 top-0 h-[100dvh] w-3/4 max-w-sm bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col",
           active ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="p-4 border-b flex justify-between items-center bg-primary/5">
+        <div className="p-4 pt-safe border-b flex justify-between items-center bg-primary/5">
           <h2 className="font-bold text-lg text-primary">メニュー</h2>
           <button 
             onClick={onClose}
@@ -116,7 +116,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 overflow-y-auto py-4 min-h-0">
           <ul className="space-y-1 px-3">
             {navItems.map((item) => (
               <li key={item.href}>
@@ -129,15 +129,15 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                       : "text-gray-700 hover:bg-gray-50"
                   )}
                 >
-                  <item.icon size={20} />
-                  {item.label}
+                  <item.icon size={20} className="shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="p-4 border-t bg-gray-50">
+        <div className="p-4 pb-safe border-t bg-gray-50">
           <button 
             onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
