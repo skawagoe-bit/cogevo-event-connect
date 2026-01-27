@@ -48,7 +48,11 @@ export function Header() {
               }}
             />
             <button
-              onClick={() => setIsMobileNavOpen(true)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsMobileNavOpen(true)
+              }}
               className="p-2 ml-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="メニュー"
             >
