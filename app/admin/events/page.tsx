@@ -107,6 +107,8 @@ export default function AdminEventsPage() {
     formData.append("attributes_preset", JSON.stringify(attributes));
     formData.append("segments_preset", JSON.stringify(segments));
     formData.append("roles_preset", JSON.stringify(roles));
+    
+    console.log("Saving email templates:", emailTemplates);
     formData.append("email_templates", JSON.stringify(emailTemplates));
 
     let result;
@@ -136,13 +138,16 @@ export default function AdminEventsPage() {
   };
   
   const handleTemplateChange = (segment: string, field: 'subject' | 'body', value: string) => {
-    setEmailTemplates(prev => ({
-      ...prev,
-      [segment]: {
-        ...prev[segment],
-        [field]: value
-      }
-    }));
+    setEmailTemplates(prev => {
+      const current = prev[segment] || { subject: "", body: "" };
+      return {
+        ...prev,
+        [segment]: {
+          ...current,
+          [field]: value
+        }
+      };
+    });
   };
 
   const getTemplate = (segment: string) => {
