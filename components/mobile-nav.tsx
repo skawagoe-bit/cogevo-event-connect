@@ -63,7 +63,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden">
+    <div className="fixed inset-0 z-[100]">
       {/* オーバーレイ */}
       <div 
         className={cn(

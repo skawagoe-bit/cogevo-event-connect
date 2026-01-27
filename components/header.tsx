@@ -49,7 +49,7 @@ export function Header() {
             />
             <button
               onClick={() => setIsMobileNavOpen(true)}
-              className="p-1 ml-2"
+              className="p-2 ml-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="メニュー"
             >
               <Menu size={24} />
