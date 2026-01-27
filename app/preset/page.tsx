@@ -43,14 +43,26 @@ export default function PresetPage() {
     setEventName(event.name);
     
     // Load presets if available
-    if (event.attributes_preset) {
+    // Always update attributes, falling back to empty array if not present.
+    // However, if the array is empty, the user cannot select any attribute in ScanPage.
+    // We should probably ensure at least "その他" exists or handle it in ScanPage.
+    if (event.attributes_preset && event.attributes_preset.length > 0) {
       setAttributes(event.attributes_preset as string[]);
+    } else {
+        // Fallback to default if empty to prevent UI lockout
+        setAttributes(["その他"]);
     }
-    if (event.segments_preset) {
+
+    if (event.segments_preset && event.segments_preset.length > 0) {
       setSegments(event.segments_preset as string[]);
+    } else {
+      setSegments([]);
     }
-    if (event.roles_preset) {
+
+    if (event.roles_preset && event.roles_preset.length > 0) {
       setRoles(event.roles_preset as string[]);
+    } else {
+      setRoles([]);
     }
   };
 

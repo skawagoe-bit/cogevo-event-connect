@@ -543,22 +543,41 @@ export default function ScanPage() {
              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
                属性を選択 <span className="text-error text-xs font-normal bg-red-50 px-2 py-0.5 rounded-full">必須</span>
              </label>
-             <div className="grid grid-cols-3 gap-3">
-               {attributes.map(attr => (
-                 <button
-                   key={attr}
-                   onClick={() => setSelectedAttribute(attr)}
-                   className={cn(
-                     "py-3 px-2 rounded-lg text-sm font-bold border-2 transition-all duration-200 shadow-sm",
-                     selectedAttribute === attr 
-                       ? "bg-primary/10 border-primary text-primary shadow-md transform scale-[1.02]" 
-                       : "bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50"
-                   )}
+             {attributes.length > 0 ? (
+               <div className="grid grid-cols-3 gap-3">
+                 {attributes.map(attr => (
+                   <button
+                     key={attr}
+                     onClick={() => setSelectedAttribute(attr)}
+                     className={cn(
+                       "py-3 px-2 rounded-lg text-sm font-bold border-2 transition-all duration-200 shadow-sm",
+                       selectedAttribute === attr 
+                         ? "bg-primary/10 border-primary text-primary shadow-md transform scale-[1.02]" 
+                         : "bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50"
+                     )}
+                   >
+                     {attr}
+                   </button>
+                 ))}
+               </div>
+             ) : (
+               <div className="text-center p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+                 <p className="text-sm text-gray-500 mb-2">属性が設定されていません</p>
+                 <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                        // Temporary fallback for this session
+                        // Ideally we would update context via a dedicated method if exposed, 
+                        // but here we just simulate selection if needed or ask user to re-select event
+                        alert("管理画面でイベントの属性を設定するか、イベントを選び直してください。");
+                        router.push('/preset');
+                    }}
                  >
-                   {attr}
-                 </button>
-               ))}
-             </div>
+                    設定を確認する
+                 </Button>
+               </div>
+             )}
            </div>
 
            <div className="space-y-3">
