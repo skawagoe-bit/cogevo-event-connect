@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -36,6 +36,9 @@ export default function ScanPage() {
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  // 新しい状態: プレビューで「使用する」を押して確定したかどうか
+  const [isImageConfirmed, setIsImageConfirmed] = useState(false);
+
   const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize camera
@@ -114,12 +117,18 @@ export default function ScanPage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
       setCapturedImage(imageUrl);
+      setIsImageConfirmed(false); // 写真を撮ったらまずは未確定状態
       if (navigator.vibrate) navigator.vibrate(50);
     }
   }, []);
 
   const retakePhoto = () => {
     setCapturedImage(null);
+    setIsImageConfirmed(false);
+  };
+
+  const confirmImage = () => {
+    setIsImageConfirmed(true);
   };
 
   const toggleVoiceInput = useCallback(() => {
@@ -307,14 +316,26 @@ export default function ScanPage() {
            {capturedImage ? (
              <div className="relative w-full h-full">
                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-               <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 animate-in fade-in">
-                 <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white">
-                   再撮影
-                 </Button>
-                 <Button onClick={() => alert('画像を使用します（未実装）')} className="bg-blue-600 hover:bg-blue-700 text-white">
-                   使用する
-                 </Button>
-               </div>
+               
+               {/* 確認済みでない場合のみ、再撮影・使用するのオーバーレイを出す */}
+               {!isImageConfirmed ? (
+                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 animate-in fade-in">
+                   <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white h-12 px-6">
+                     再撮影
+                   </Button>
+                   <Button onClick={confirmImage} className="bg-blue-600 hover:bg-blue-700 text-white h-12 px-6 shadow-lg border border-white/20">
+                     <Check className="w-5 h-5 mr-2" />
+                     使用する
+                   </Button>
+                 </div>
+               ) : (
+                 /* 確定済みの場合、右上に再撮影ボタンを小さく表示 */
+                 <div className="absolute top-2 right-2 z-10">
+                    <Button onClick={retakePhoto} variant="secondary" size="sm" className="bg-black/40 text-white hover:bg-black/60 border-none backdrop-blur-md">
+                        <RefreshCcw className="w-3 h-3 mr-1" /> 再撮影
+                    </Button>
+                 </div>
+               )}
              </div>
            ) : hasCameraPermission === true ? (
              <video 
