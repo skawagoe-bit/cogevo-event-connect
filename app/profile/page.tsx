@@ -9,6 +9,8 @@ import { getProfile, updateProfile } from "@/app/actions/profile";
 export default function ProfilePage() {
   const router = useRouter();
   const [sansanUrl, setSansanUrl] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [department, setDepartment] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -17,6 +19,8 @@ export default function ProfilePage() {
       const result = await getProfile();
       if (result.success && result.data) {
         setSansanUrl(result.data.sansan_url || "");
+        setFullName(result.data.full_name || "");
+        setDepartment(result.data.department || "");
       }
       setLoading(false);
     };
@@ -27,6 +31,8 @@ export default function ProfilePage() {
     setSaving(true);
     const formData = new FormData();
     formData.append("sansan_url", sansanUrl);
+    formData.append("full_name", fullName);
+    formData.append("department", department);
 
     const result = await updateProfile(formData);
     
@@ -56,6 +62,28 @@ export default function ProfilePage() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">氏名</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="山田 太郎"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">所属（部署・役職など）</label>
+                <input
+                  type="text"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="営業部 第1課"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Sansanオンライン名刺URL</label>
                 <input

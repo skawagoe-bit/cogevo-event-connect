@@ -6,6 +6,8 @@ import { z } from 'zod'
 
 const profileSchema = z.object({
   sansan_url: z.string().url('有効なURLを入力してください').optional().or(z.literal('')),
+  full_name: z.string().optional().or(z.literal('')),
+  department: z.string().optional().or(z.literal('')),
 })
 
 export async function updateProfile(formData: FormData) {
@@ -20,6 +22,8 @@ export async function updateProfile(formData: FormData) {
 
     const rawData = {
       sansan_url: formData.get('sansan_url'),
+      full_name: formData.get('full_name'),
+      department: formData.get('department'),
     }
 
     const validated = profileSchema.parse(rawData)
@@ -36,7 +40,9 @@ export async function updateProfile(formData: FormData) {
     const { error } = await supabase
       .from('users')
       .update({
-        sansan_url: validated.sansan_url || null
+        sansan_url: validated.sansan_url || null,
+        full_name: validated.full_name || null,
+        department: validated.department || null,
       })
       .eq('id', user.id)
 
@@ -61,7 +67,7 @@ export async function getProfile() {
 
     const { data, error } = await supabase
       .from('users')
-      .select('sansan_url')
+      .select('sansan_url, full_name, department')
       .eq('clerk_user_id', userId)
       .single()
 
