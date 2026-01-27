@@ -13,7 +13,7 @@ import { getProfile } from "@/app/actions/profile";
 
 export default function ScanPage() {
   const router = useRouter();
-  const { eventName, attributes, segments, roles } = useSettings();
+  const { eventId, eventName, attributes, segments, roles } = useSettings();
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -226,7 +226,11 @@ export default function ScanPage() {
       }
 
       const formData = new FormData();
-      formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
+      if (!eventId) {
+        alert("イベントが選択されていません。トップに戻ってイベントを選択してください。");
+        return;
+      }
+      formData.append("event_id", eventId); 
       
       if (name) formData.append("name", name);
       if (company) formData.append("company", company);

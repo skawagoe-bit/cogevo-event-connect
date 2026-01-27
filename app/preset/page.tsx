@@ -10,17 +10,16 @@ import { getEventsByMonth } from "@/app/actions/events";
 export default function PresetPage() {
   const router = useRouter();
   const { 
+    eventId, setEventId,
     eventName, setEventName, 
     attributes, setAttributes, 
     segments, setSegments, 
     roles, setRoles,
-    addRole, removeRole
   } = useSettings();
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [events, setEvents] = useState<any[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   
   // Fetch events when month changes
   useEffect(() => {
@@ -40,7 +39,7 @@ export default function PresetPage() {
   }, [targetMonth]);
 
   const handleEventSelect = (event: any) => {
-    setSelectedEventId(event.id);
+    setEventId(event.id);
     setEventName(event.name);
     
     // Load presets if available
@@ -56,8 +55,8 @@ export default function PresetPage() {
   };
 
   const handleStart = () => {
-    if (!selectedEventId && !eventName) {
-      alert("イベントを選択するか、イベント名を入力してください");
+    if (!eventId && !eventName) {
+      alert("イベントを選択してください");
       return;
     }
     router.push("/scan");
@@ -118,7 +117,7 @@ export default function PresetPage() {
                   key={event.id}
                   onClick={() => handleEventSelect(event)}
                   className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                    selectedEventId === event.id
+                    eventId === event.id
                       ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
                       : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                   }`}
@@ -127,7 +126,7 @@ export default function PresetPage() {
                   <div className="text-sm text-gray-500 mt-1">
                     {new Date(event.event_date).toLocaleDateString('ja-JP')}
                   </div>
-                  {selectedEventId === event.id && (
+                  {eventId === event.id && (
                     <div className="mt-2 text-xs font-bold text-primary flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
                       選択中（設定反映済み）

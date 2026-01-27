@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { attributes as defaultAttributes, segments as defaultSegments, roles as defaultRoles } from "@/lib/mock-data";
 
 type SettingsContextType = {
+  eventId: string | null;
+  setEventId: (id: string | null) => void;
   eventName: string;
   setEventName: (name: string) => void;
   attributes: string[];
@@ -23,6 +25,7 @@ type SettingsContextType = {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const [eventId, setEventId] = useState<string | null>(null);
   const [eventName, setEventName] = useState("第57回日本作業療法学会");
   const [attributes, setAttributes] = useState<string[]>([...defaultAttributes]);
   const [segments, setSegments] = useState<string[]>([...defaultSegments]);
@@ -30,12 +33,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Load from localStorage on mount
   useEffect(() => {
+    const savedEventId = localStorage.getItem("eventId");
     const savedEventName = localStorage.getItem("eventName");
     const savedAttributes = localStorage.getItem("attributes");
     const savedSegments = localStorage.getItem("segments");
     const savedRoles = localStorage.getItem("roles");
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (savedEventId) setEventId(savedEventId);
     if (savedEventName) setEventName(savedEventName);
     
     if (savedAttributes) {
@@ -64,6 +69,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Save to localStorage on change
+  useEffect(() => {
+    if (eventId) localStorage.setItem("eventId", eventId);
+    else localStorage.removeItem("eventId");
+  }, [eventId]);
+
   useEffect(() => {
     localStorage.setItem("eventName", eventName);
   }, [eventName]);
@@ -113,6 +123,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   return (
     <SettingsContext.Provider
       value={{
+        eventId,
+        setEventId,
         eventName,
         setEventName,
         attributes,

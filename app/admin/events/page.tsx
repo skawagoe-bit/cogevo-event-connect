@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users } from "lucide-react";
+import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from "@/app/actions/events";
 
@@ -13,6 +13,8 @@ interface EventItem {
   attributes_preset?: string[];
   segments_preset?: string[];
   roles_preset?: string[];
+  email_subject?: string;
+  email_body?: string;
 }
 
 export default function AdminEventsPage() {
@@ -28,6 +30,8 @@ export default function AdminEventsPage() {
   const [attributes, setAttributes] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   
   // Temporary state for adding new tags
   const [newAttribute, setNewAttribute] = useState("");
@@ -55,6 +59,8 @@ export default function AdminEventsPage() {
     setAttributes(["医師", "看護師", "PT", "OT", "ST", "事務長", "施設長", "その他"]);
     setSegments(["パートナー", "既存顧客", "新規リード", "競合"]);
     setRoles(["決裁者", "担当者", "導入検討中", "情報収集"]);
+    setEmailSubject("【御礼】展示ブースにお立ち寄りいただきありがとうございます");
+    setEmailBody("この度は、当社のブースにお立ち寄りいただき、誠にありがとうございました。\n\nご案内いたしましたサービスについて、ご不明な点などがございましたら、\nお気軽にお問い合わせください。\n\n今後ともよろしくお願い申し上げます。");
     setEditingEvent(null);
   };
 
@@ -70,6 +76,8 @@ export default function AdminEventsPage() {
     setAttributes(event.attributes_preset || []);
     setSegments(event.segments_preset || []);
     setRoles(event.roles_preset || []);
+    setEmailSubject(event.email_subject || "");
+    setEmailBody(event.email_body || "");
     setIsModalOpen(true);
   };
 
@@ -96,6 +104,8 @@ export default function AdminEventsPage() {
     formData.append("attributes_preset", JSON.stringify(attributes));
     formData.append("segments_preset", JSON.stringify(segments));
     formData.append("roles_preset", JSON.stringify(roles));
+    formData.append("email_subject", emailSubject);
+    formData.append("email_body", emailBody);
 
     let result;
     if (editingEvent) {
@@ -288,6 +298,33 @@ export default function AdminEventsPage() {
                     </span>
                   ))}
                   {roles.length === 0 && <span className="text-gray-400 text-xs">設定なし</span>}
+                </div>
+              </div>
+
+              {/* Email Template Section */}
+              <div className="space-y-3 pt-2 border-t">
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-orange-600" /> 一斉送信テンプレート
+                </label>
+                <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                  <div>
+                    <span className="text-xs font-bold text-gray-500 block mb-1">メール件名</span>
+                    <input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded text-sm"
+                      placeholder="例: 【御礼】展示ブースにお立ち寄りいただきありがとうございます"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-gray-500 block mb-1">メール本文</span>
+                    <textarea
+                      value={emailBody}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded text-sm min-h-[150px]"
+                      placeholder="メール本文を入力してください"
+                    />
+                  </div>
                 </div>
               </div>
 

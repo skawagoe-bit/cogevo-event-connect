@@ -10,6 +10,8 @@ const eventSchema = z.object({
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
   roles_preset: z.array(z.string()).optional(),
+  email_subject: z.string().optional(),
+  email_body: z.string().optional(),
 })
 
 export async function createEvent(formData: FormData) {
@@ -43,6 +45,8 @@ export async function createEvent(formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
+      email_subject: formData.get('email_subject'),
+      email_body: formData.get('email_body'),
     }
 
     const validated = eventSchema.parse(rawData)
@@ -56,6 +60,8 @@ export async function createEvent(formData: FormData) {
         attributes_preset: validated.attributes_preset,
         segments_preset: validated.segments_preset,
         roles_preset: validated.roles_preset,
+        email_subject: validated.email_subject,
+        email_body: validated.email_body,
       })
       .select()
       .single()
@@ -91,6 +97,8 @@ export async function updateEvent(id: string, formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
+      email_subject: formData.get('email_subject'),
+      email_body: formData.get('email_body'),
     }
 
     const validated = eventSchema.parse(rawData)
@@ -103,6 +111,8 @@ export async function updateEvent(id: string, formData: FormData) {
         attributes_preset: validated.attributes_preset,
         segments_preset: validated.segments_preset,
         roles_preset: validated.roles_preset,
+        email_subject: validated.email_subject,
+        email_body: validated.email_body,
       })
       .eq('id', id)
       .select()
