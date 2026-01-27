@@ -95,34 +95,46 @@ export default function AdminEventsPage() {
     }
   };
 
-  const handleSave = async () => {
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ... existing code ...
+
+    const handleSave = async () => {
     if (!name || !eventDate) {
       alert("イベント名と開催日は必須です");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("event_date", eventDate);
-    formData.append("attributes_preset", JSON.stringify(attributes));
-    formData.append("segments_preset", JSON.stringify(segments));
-    formData.append("roles_preset", JSON.stringify(roles));
-    
-    console.log("Saving email templates:", emailTemplates);
-    formData.append("email_templates", JSON.stringify(emailTemplates));
+    setIsSaving(true);
+    try {
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("event_date", eventDate);
+        formData.append("attributes_preset", JSON.stringify(attributes));
+        formData.append("segments_preset", JSON.stringify(segments));
+        formData.append("roles_preset", JSON.stringify(roles));
+        
+        console.log("Saving email templates:", emailTemplates);
+        formData.append("email_templates", JSON.stringify(emailTemplates));
 
-    let result;
-    if (editingEvent) {
-      result = await updateEvent(editingEvent.id, formData);
-    } else {
-      result = await createEvent(formData);
-    }
+        let result;
+        if (editingEvent) {
+          result = await updateEvent(editingEvent.id, formData);
+        } else {
+          result = await createEvent(formData);
+        }
 
-    if (result.success) {
-      setIsModalOpen(false);
-      fetchEvents();
-    } else {
-      alert("保存に失敗しました: " + result.error);
+        if (result.success) {
+          setIsModalOpen(false);
+          fetchEvents();
+        } else {
+          alert("保存に失敗しました: " + result.error);
+        }
+    } catch (e: any) {
+        console.error(e);
+        alert("予期せぬエラーが発生しました: " + e.message);
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -380,9 +392,9 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="p-4 border-t bg-gray-50 rounded-b-2xl">
-              <Button onClick={handleSave} className="w-full text-lg font-bold h-12 shadow-lg">
+              <Button onClick={handleSave} className="w-full text-lg font-bold h-12 shadow-lg" disabled={isSaving}>
                 <Save className="w-5 h-5 mr-2" />
-                保存する
+                {isSaving ? "保存中..." : "保存する"}
               </Button>
             </div>
           </div>
