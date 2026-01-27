@@ -251,6 +251,18 @@ export default function ScanPage() {
       if (imageUrl) formData.append("image_url", imageUrl);
       if (memoText) formData.append("memo", memoText);
 
+      console.log("Submitting visitor data:", {
+        event_id: eventId,
+        name,
+        company,
+        email,
+        attribute: selectedAttribute,
+        segment: selectedSegment,
+        roles: selectedRoles,
+        hasImage: !!imageUrl,
+        memo: memoText
+      });
+
       const result = await createVisitor(formData);
       
       if (result.success) {

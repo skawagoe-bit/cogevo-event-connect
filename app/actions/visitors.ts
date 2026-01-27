@@ -42,6 +42,8 @@ export async function createVisitor(formData: FormData) {
       memo: formData.get('memo'),
     }
 
+    console.log("Received raw data in Server Action:", rawData);
+
     const validated = createVisitorSchema.parse(rawData)
 
     const { data, error } = await supabase
