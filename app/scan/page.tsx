@@ -18,6 +18,17 @@ export default function ScanPage() {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   
+  // Check if eventId is set
+  useEffect(() => {
+    if (!eventId) {
+      const savedEventId = localStorage.getItem("eventId");
+      if (!savedEventId) {
+          alert("イベントが選択されていません。選択画面に戻ります。");
+          router.push("/preset");
+      }
+    }
+  }, [eventId, router]);
+
   // OCR / Visitor Data State
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
