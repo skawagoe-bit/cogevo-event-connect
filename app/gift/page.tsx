@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Minus, Gift as GiftIcon, Package, Settings, X, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createGift, updateGiftStock, getGifts } from "@/app/actions/gifts";
-
-// 以前のファイルで定義されていた型定義と定数
-const CURRENT_EVENT_ID = "123e4567-e89b-12d3-a456-426614174000";
+import { useSettings } from "@/app/providers";
 
 interface GiftItem {
   id: string;
@@ -22,6 +20,7 @@ interface GiftItem {
 
 export default function GiftPage() {
   const router = useRouter();
+  const { eventId } = useSettings();
   const [gifts, setGifts] = useState<GiftItem[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -32,9 +31,10 @@ export default function GiftPage() {
   const [newGiftImageUrl, setNewGiftImageUrl] = useState("");
 
   const fetchGifts = async () => {
+    if (!eventId) return;
     setLoading(true);
     // Server Action経由で取得（RLS回避のため）
-    const result = await getGifts(CURRENT_EVENT_ID);
+    const result = await getGifts(eventId);
     
     if (result.success) {
       setGifts(result.data as GiftItem[] || []);
@@ -45,8 +45,19 @@ export default function GiftPage() {
   };
 
   useEffect(() => {
-    fetchGifts();
-  }, []);
+    if (!eventId) {
+        // Retry from local storage if context is empty (on reload)
+        const savedEventId = localStorage.getItem("eventId");
+        if (!savedEventId) {
+            alert("イベントが選択されていません。選択画面に戻ります。");
+            router.push("/preset");
+            return;
+        }
+        // Wait for context to hydrate or use saved ID directly in next render
+    } else {
+        fetchGifts();
+    }
+  }, [eventId]);
 
   const handleStockChange = async (giftId: string, delta: number) => {
     const currentGift = gifts.find(g => g.id === giftId);
@@ -77,7 +88,7 @@ export default function GiftPage() {
     const formData = new FormData();
     formData.append("name", newGiftName);
     formData.append("stock_count", newGiftStock.toString());
-    formData.append("event_id", CURRENT_EVENT_ID);
+    formData.append("event_id", eventId || "");
     if (newGiftImageUrl) formData.append("image_url", newGiftImageUrl);
 
     const result = await createGift(formData);

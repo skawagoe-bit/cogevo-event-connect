@@ -13,11 +13,9 @@ import { getVisitors } from "@/app/actions/visitors";
 
 type Visitor = Database['public']['Tables']['visitors']['Row'];
 
-const CURRENT_EVENT_ID = "123e4567-e89b-12d3-a456-426614174000";
-
 export default function ListPage() {
   const router = useRouter();
-  const { attributes } = useSettings();
+  const { eventId, attributes } = useSettings();
   const [activeTab, setActiveTab] = useState<'unsent' | 'sent'>('unsent');
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,9 +25,19 @@ export default function ListPage() {
 
   // Initial data fetch
   useEffect(() => {
+    if (!eventId) {
+        const savedEventId = localStorage.getItem("eventId");
+        if (!savedEventId) {
+             router.push("/preset");
+             return;
+        }
+        // Context will update soon
+        return;
+    }
+
     const fetchVisitors = async () => {
       // Use Server Action to bypass RLS for the dummy event ID
-      const result = await getVisitors(CURRENT_EVENT_ID);
+      const result = await getVisitors(eventId);
       
       if (result.success) {
         setVisitors(result.data as Visitor[] || []);
@@ -40,7 +48,7 @@ export default function ListPage() {
     };
 
     fetchVisitors();
-  }, []);
+  }, [eventId, router]);
 
   // Realtime subscription
   useRealtimeSubscription<Visitor>(
