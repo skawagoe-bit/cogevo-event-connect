@@ -428,7 +428,7 @@ export default function ScanPage() {
            >
              <Mic className={cn("w-5 h-5", isListening ? "text-red-500" : "text-blue-600")} />
              <span className={cn("text-[10px] font-bold", isListening ? "text-red-600" : "text-blue-700")}>
-               {isListening ? "聞いています" : "音声入力"}
+               {isListening ? "聞いています" : "商談内容入力"}
              </span>
            </Button>
         </div>
@@ -472,7 +472,7 @@ export default function ScanPage() {
                  value={memoText}
                  onChange={(e) => setMemoText(e.target.value)}
                  className="w-full p-3 bg-white border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all min-h-[80px]"
-                 placeholder="テキスト入力、または上の「音声入力」ボタンで記録..."
+                 placeholder="テキスト入力、または上の「商談内容入力」ボタンで記録..."
                />
                {memoText && (
                  <button 

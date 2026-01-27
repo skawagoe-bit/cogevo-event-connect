@@ -151,10 +151,23 @@ export async function getEventsByMonth(yearMonth: string) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // yearMonth is "YYYY-MM"
+    const [year, month] = yearMonth.split('-').map(Number);
+    
+    // Calculate start and end of the month
+    // Note: Creating date in local time then converting to ISO might shift the day if not careful.
+    // However, for simple date string comparison (YYYY-MM-DD), constructing strings is safer.
+    
+    const startDate = `${yearMonth}-01`;
+    // Last day of month calculation
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${yearMonth}-${lastDay}`;
+
     const { data, error } = await supabase
       .from('events')
       .select('*')
-      .like('event_date', `${yearMonth}-%`)
+      .gte('event_date', startDate)
+      .lte('event_date', endDate)
       .order('event_date', { ascending: true });
 
     if (error) throw error;
