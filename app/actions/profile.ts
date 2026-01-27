@@ -3,10 +3,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
 
 const profileSchema = z.object({
-  sansan_url: z.string().url('正しいURL形式で入力してください').optional().or(z.literal('')),
+  sansan_url: z.string().url('有効なURLを入力してください').optional().or(z.literal('')),
 })
 
 export async function updateProfile(formData: FormData) {
@@ -25,21 +24,28 @@ export async function updateProfile(formData: FormData) {
 
     const validated = profileSchema.parse(rawData)
 
+    // Clerk IDからSupabase User IDを取得して更新
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', userId)
+      .single()
+
+    if (userError || !user) throw new Error('ユーザー情報の取得に失敗しました')
+
     const { error } = await supabase
       .from('users')
       .update({
-        sansan_url: validated.sansan_url || null,
-        updated_at: new Date().toISOString(),
+        sansan_url: validated.sansan_url || null
       })
-      .eq('clerk_user_id', userId)
+      .eq('id', user.id)
 
     if (error) throw error
 
-    revalidatePath('/profile')
     return { success: true }
   } catch (error: any) {
     console.error('Update profile error:', error)
-    return { success: false, error: error.message || 'プロフィールの更新に失敗しました' }
+    return { success: false, error: error.message }
   }
 }
 

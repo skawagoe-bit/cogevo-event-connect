@@ -13,6 +13,7 @@ export default async function ProtectedLayout({
     redirect('/sign-in')
   }
 
+  // Ensure user exists in Supabase
   await ensureSupabaseUser()
 
   return (

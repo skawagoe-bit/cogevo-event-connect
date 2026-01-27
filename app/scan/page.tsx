@@ -9,6 +9,7 @@ import { useSettings } from "@/app/providers";
 import QRCode from "react-qr-code";
 import { createClient } from "@/lib/supabase/client";
 import { createVisitor } from "@/app/actions/visitors";
+import { getProfile } from "@/app/actions/profile";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function ScanPage() {
   const recognitionRef = useRef<any>(null);
   
   const [showQR, setShowQR] = useState(false);
+  const [mySansanUrl, setMySansanUrl] = useState<string | null>(null);
   
   // Camera references
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -36,10 +38,20 @@ export default function ScanPage() {
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  // 新しい状態: プレビューで「使用する」を押して確定したかどうか
   const [isImageConfirmed, setIsImageConfirmed] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Fetch user profile for QR code
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const result = await getProfile();
+      if (result.success && result.data?.sansan_url) {
+        setMySansanUrl(result.data.sansan_url);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Initialize camera
   const startCamera = useCallback(async () => {
@@ -51,7 +63,6 @@ export default function ScanPage() {
 
       let stream: MediaStream;
       try {
-        // Try to get exact environment camera first
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
@@ -60,7 +71,6 @@ export default function ScanPage() {
         });
       } catch (err) {
         console.log("Exact facing mode failed, falling back to ideal/default");
-        // Fallback to ideal or just string
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: facingMode === 'user' ? 'user' : 'environment',
@@ -72,7 +82,6 @@ export default function ScanPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // 明示的に再生を開始（iOS対策）
         try {
           await videoRef.current.play();
         } catch (e) {
@@ -117,7 +126,7 @@ export default function ScanPage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
       setCapturedImage(imageUrl);
-      setIsImageConfirmed(false); // 写真を撮ったらまずは未確定状態
+      setIsImageConfirmed(false);
       if (navigator.vibrate) navigator.vibrate(50);
     }
   }, []);
@@ -183,14 +192,10 @@ export default function ScanPage() {
 
   const handleSansanMock = async () => {
     setIsAnalyzing(true);
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    // Mock Data
     setName("山田 太郎");
     setCompany("Sansan株式会社");
     setEmail("taro.yamada@example.com");
-    
     setIsAnalyzing(false);
     alert("Sansanで名刺をデータ化しました");
   };
@@ -205,7 +210,6 @@ export default function ScanPage() {
       const supabase = createClient();
       let imageUrl = "";
 
-      // 1. Upload Image
       if (capturedImage) {
         const imageBlob = await (await fetch(capturedImage)).blob();
         const filename = `image-${Date.now()}.jpg`;
@@ -221,17 +225,12 @@ export default function ScanPage() {
         imageUrl = publicUrl;
       }
 
-      // 2. Register Data
       const formData = new FormData();
-      // Use a fixed valid UUID for MVP. 
-      // In production, this should come from the selected event context.
       formData.append("event_id", "123e4567-e89b-12d3-a456-426614174000"); 
       
-      // Basic Info
       if (name) formData.append("name", name);
       if (company) formData.append("company", company);
       if (email) formData.append("email", email);
-
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
       if (imageUrl) formData.append("image_url", imageUrl);
@@ -245,7 +244,6 @@ export default function ScanPage() {
         console.error(result.error);
         alert("登録エラー: " + result.error);
       }
-
     } catch (err: any) {
       console.error("Registration error:", err);
       alert("登録処理中にエラーが発生しました: " + err.message);
@@ -260,7 +258,6 @@ export default function ScanPage() {
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
@@ -276,7 +273,6 @@ export default function ScanPage() {
          </Button>
       </header>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto pb-24 scrollbar-hide relative">
         
         {/* QR Code Overlay Modal */}
@@ -292,14 +288,28 @@ export default function ScanPage() {
               </div>
               
               <div className="bg-white p-4 rounded-xl border-2 border-gray-100 inline-block shadow-sm">
-                <QRCode 
-                  // In a real app, this would be the user's actual Sansan URL
-                  value="https://ap.sansan.com/v/virtual-cards/..." 
-                  size={200}
-                  style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                  viewBox={`0 0 256 256`}
-                />
+                {mySansanUrl ? (
+                  <QRCode 
+                    value={mySansanUrl} 
+                    size={200}
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                    viewBox={`0 0 256 256`}
+                  />
+                ) : (
+                  <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
+                    プロフィール設定から<br/>URLを登録してください
+                  </div>
+                )}
               </div>
+              
+              {!mySansanUrl && (
+                <Button 
+                  onClick={() => router.push('/profile')}
+                  className="w-full bg-primary text-white hover:bg-primary/90"
+                >
+                  設定画面へ
+                </Button>
+              )}
 
               <Button 
                 onClick={() => setShowQR(false)}
@@ -311,13 +321,11 @@ export default function ScanPage() {
           </div>
         )}
 
-        {/* Camera Preview Area */}
+        {/* Camera Preview Area (Rest of the component remains same) */}
         <div className="relative aspect-[4/3] bg-slate-900 mx-0 mt-0 overflow-hidden flex items-center justify-center group">
            {capturedImage ? (
              <div className="relative w-full h-full">
                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-               
-               {/* 確認済みでない場合のみ、再撮影・使用するのオーバーレイを出す */}
                {!isImageConfirmed ? (
                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 animate-in fade-in">
                    <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white h-12 px-6">
@@ -329,7 +337,6 @@ export default function ScanPage() {
                    </Button>
                  </div>
                ) : (
-                 /* 確定済みの場合、右上に再撮影ボタンを小さく表示 */
                  <div className="absolute top-2 right-2 z-10">
                     <Button onClick={retakePhoto} variant="secondary" size="sm" className="bg-black/40 text-white hover:bg-black/60 border-none backdrop-blur-md">
                         <RefreshCcw className="w-3 h-3 mr-1" /> 再撮影
@@ -375,7 +382,6 @@ export default function ScanPage() {
                  </div>
                </div>
                
-               {/* Controls Overlay */}
                <div className="absolute top-4 right-4 flex gap-2 z-20">
                  <button 
                    onClick={toggleCamera}
@@ -399,7 +405,6 @@ export default function ScanPage() {
              </>
            )}
            
-           {/* Sansan Analyze Button Overlay (Only when image captured) */}
            {capturedImage && (
              <div className="absolute bottom-4 right-4 z-20">
                <Button 
@@ -436,7 +441,6 @@ export default function ScanPage() {
              <ImageIcon className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">バッジ</span>
            </Button>
-           {/* Voice Input Button - Toggles Listening */}
            <Button 
              variant="secondary" 
              onClick={toggleVoiceInput}
@@ -454,9 +458,8 @@ export default function ScanPage() {
            </Button>
         </div>
 
-        {/* Memo Input Area (Always Visible) */}
+        {/* Memo Input Area */}
         <div className="px-5 pt-4">
-           {/* Basic Info Inputs (Shown if filled or analyzing) */}
            {(name || company || email || isAnalyzing) && (
              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">名刺情報 (Sansan)</h3>
@@ -531,7 +534,6 @@ export default function ScanPage() {
              </div>
            </div>
 
-           {/* New Role Selection */}
            <div className="space-y-3">
              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
                役割・タグ <span className="text-xs text-gray-400 font-normal">複数選択可</span>
@@ -574,7 +576,6 @@ export default function ScanPage() {
              </div>
            </div>
            
-           {/* Main Action */}
            <Button 
              variant="accent"
              className={cn(
@@ -587,11 +588,10 @@ export default function ScanPage() {
              登録する
            </Button>
            
-           <div className="h-8"></div> {/* Spacer */}
+           <div className="h-8"></div>
         </div>
       </div>
 
-      {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t p-0 grid grid-cols-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
          <button 
             className="flex flex-col items-center justify-center py-4 gap-1.5 border-r border-gray-100 active:bg-gray-50 transition-colors"
