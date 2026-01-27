@@ -13,8 +13,7 @@ interface EventItem {
   attributes_preset?: string[];
   segments_preset?: string[];
   roles_preset?: string[];
-  email_subject?: string;
-  email_body?: string;
+  email_templates?: Record<string, { subject: string; body: string }>;
 }
 
 export default function AdminEventsPage() {
@@ -30,8 +29,9 @@ export default function AdminEventsPage() {
   const [attributes, setAttributes] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
+  // Email templates state: map segment name to template
+  const [emailTemplates, setEmailTemplates] = useState<Record<string, { subject: string; body: string }>>({});
+  const [selectedTemplateSegment, setSelectedTemplateSegment] = useState<string>("");
   
   // Temporary state for adding new tags
   const [newAttribute, setNewAttribute] = useState("");
@@ -59,13 +59,15 @@ export default function AdminEventsPage() {
     setAttributes(["医師", "看護師", "PT", "OT", "ST", "事務長", "施設長", "その他"]);
     setSegments(["パートナー", "既存顧客", "新規リード", "競合"]);
     setRoles(["決裁者", "担当者", "導入検討中", "情報収集"]);
-    setEmailSubject("【御礼】展示ブースにお立ち寄りいただきありがとうございます");
-    setEmailBody("この度は、当社のブースにお立ち寄りいただき、誠にありがとうございました。\n\nご案内いたしましたサービスについて、ご不明な点などがございましたら、\nお気軽にお問い合わせください。\n\n今後ともよろしくお願い申し上げます。");
+    setEmailTemplates({});
+    setSelectedTemplateSegment("");
     setEditingEvent(null);
   };
 
   const handleOpenCreate = () => {
     resetForm();
+    // Default selected segment for template editing
+    setSelectedTemplateSegment("新規リード");
     setIsModalOpen(true);
   };
 
@@ -76,8 +78,9 @@ export default function AdminEventsPage() {
     setAttributes(event.attributes_preset || []);
     setSegments(event.segments_preset || []);
     setRoles(event.roles_preset || []);
-    setEmailSubject(event.email_subject || "");
-    setEmailBody(event.email_body || "");
+    setEmailTemplates(event.email_templates || {});
+    // Default selected segment to the first one available or fallback
+    setSelectedTemplateSegment((event.segments_preset && event.segments_preset[0]) || "新規リード");
     setIsModalOpen(true);
   };
 
@@ -104,8 +107,7 @@ export default function AdminEventsPage() {
     formData.append("attributes_preset", JSON.stringify(attributes));
     formData.append("segments_preset", JSON.stringify(segments));
     formData.append("roles_preset", JSON.stringify(roles));
-    formData.append("email_subject", emailSubject);
-    formData.append("email_body", emailBody);
+    formData.append("email_templates", JSON.stringify(emailTemplates));
 
     let result;
     if (editingEvent) {
@@ -131,6 +133,20 @@ export default function AdminEventsPage() {
 
   const removeTag = (index: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     setter(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleTemplateChange = (segment: string, field: 'subject' | 'body', value: string) => {
+    setEmailTemplates(prev => ({
+      ...prev,
+      [segment]: {
+        ...prev[segment],
+        [field]: value
+      }
+    }));
+  };
+
+  const getTemplate = (segment: string) => {
+    return emailTemplates[segment] || { subject: "", body: "" };
   };
 
   return (
@@ -306,26 +322,54 @@ export default function AdminEventsPage() {
                 <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
                   <Mail className="w-4 h-4 text-orange-600" /> 一斉送信テンプレート
                 </label>
-                <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
-                  <div>
-                    <span className="text-xs font-bold text-gray-500 block mb-1">メール件名</span>
-                    <input
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      className="w-full p-2 border border-gray-200 rounded text-sm"
-                      placeholder="例: 【御礼】展示ブースにお立ち寄りいただきありがとうございます"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-gray-500 block mb-1">メール本文</span>
-                    <textarea
-                      value={emailBody}
-                      onChange={(e) => setEmailBody(e.target.value)}
-                      className="w-full p-2 border border-gray-200 rounded text-sm min-h-[150px]"
-                      placeholder="メール本文を入力してください"
-                    />
-                  </div>
+                
+                <div className="flex gap-2 mb-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {segments.map(segment => (
+                    <button
+                      key={segment}
+                      onClick={() => setSelectedTemplateSegment(segment)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
+                        selectedTemplateSegment === segment
+                          ? "bg-orange-600 text-white border-orange-600 shadow-md"
+                          : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      {segment}
+                    </button>
+                  ))}
+                  {segments.length === 0 && (
+                    <span className="text-xs text-red-500">先に「顧客区分」を設定してください</span>
+                  )}
                 </div>
+
+                {selectedTemplateSegment && segments.includes(selectedTemplateSegment) && (
+                    <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100 animate-in fade-in">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">
+                            {selectedTemplateSegment}
+                        </span>
+                        <span className="text-xs text-gray-500">用のテンプレート</span>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-gray-500 block mb-1">メール件名</span>
+                        <input
+                          value={getTemplate(selectedTemplateSegment).subject}
+                          onChange={(e) => handleTemplateChange(selectedTemplateSegment, 'subject', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm"
+                          placeholder={`【御礼】展示ブースにお立ち寄りいただきありがとうございます`}
+                        />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-gray-500 block mb-1">メール本文</span>
+                        <textarea
+                          value={getTemplate(selectedTemplateSegment).body}
+                          onChange={(e) => handleTemplateChange(selectedTemplateSegment, 'body', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm min-h-[150px]"
+                          placeholder={`この度は、当社のブースにお立ち寄りいただき...\n\n(※ ${selectedTemplateSegment} 様向けのメッセージを入力)`}
+                        />
+                      </div>
+                    </div>
+                )}
               </div>
 
             </div>
