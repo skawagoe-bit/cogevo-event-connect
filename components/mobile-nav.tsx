@@ -111,6 +111,20 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                 </Link>
+
+                <div className="pt-4 mt-2 border-t border-gray-100">
+                    <p className="text-xs font-bold text-gray-400 mb-3 px-2">アカウント</p>
+                    <Link 
+                        href="/profile" 
+                        className="flex items-center justify-between p-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-primary transition-all duration-200 group"
+                        onClick={onClose}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Users size={18} className="text-gray-400 group-hover:text-primary transition-colors" />
+                            <span className="font-medium text-sm">プロフィール設定</span>
+                        </div>
+                    </Link>
+                </div>
               </SignedIn>
               
               <SignedOut>
