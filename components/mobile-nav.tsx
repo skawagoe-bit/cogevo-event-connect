@@ -26,24 +26,40 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { signOut } = useClerk()
-  const [isVisible, setIsVisible] = useState(false)
+  
+  // マウント状態（DOMに存在するかどうか）
+  const [mounted, setMounted] = useState(false)
+  // アニメーション用状態（クラスの切り替え用）
+  const [active, setActive] = useState(false)
 
-  // アニメーション制御
+  // isOpenがtrueになったらマウントし、次のフレームでアクティブにする
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true)
+      setMounted(true)
+      // マウント直後にアニメーションを開始するために少し遅延させる
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setActive(true)
+        })
+      })
       document.body.style.overflow = 'hidden' // スクロール防止
     } else {
-      const timer = setTimeout(() => setIsVisible(false), 300)
-      document.body.style.overflow = ''
+      setActive(false)
+      // アニメーション終了後にアンマウント
+      const timer = setTimeout(() => {
+        setMounted(false)
+        document.body.style.overflow = ''
+      }, 300)
       return () => clearTimeout(timer)
     }
   }, [isOpen])
 
   // パス変更時にメニューを閉じる
   useEffect(() => {
-    onClose()
-  }, [pathname, onClose])
+    if (isOpen) {
+      onClose()
+    }
+  }, [pathname, onClose, isOpen])
 
   const handleSignOut = async () => {
     await signOut()
@@ -51,7 +67,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
     onClose()
   }
 
-  if (!isVisible && !isOpen) return null
+  if (!mounted && !isOpen) return null
 
   const navItems = [
     { href: '/dashboard', label: 'ダッシュボード', icon: BarChart3 },
@@ -68,12 +84,14 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
       <div 
         className={cn(
           "absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300",
-          isOpen ? "opacity-100" : "opacity-0"
+          active ? "opacity-100" : "opacity-0",
+          // アクティブでないときはクリックを受け付けない（ゴーストクリック防止）
+          !active && "pointer-events-none"
         )}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          onClose()
+          if (active) onClose()
         }}
       />
 
@@ -81,7 +99,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
       <div 
         className={cn(
           "absolute right-0 top-0 bottom-0 w-3/4 max-w-sm bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          active ? "translate-x-0" : "translate-x-full"
         )}
       >
         <div className="p-4 border-b flex justify-between items-center bg-primary/5">
