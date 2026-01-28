@@ -250,12 +250,12 @@ export default function ListPage() {
             className="flex items-center gap-2 hover:text-gray-800 transition-colors"
           >
             <div className={cn(
-              "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+              "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors",
               filteredVisitors.every(v => selectedIds.has(v.id))
                 ? "bg-primary border-primary text-white" 
-                : "border-gray-300 bg-white"
+                : "border-gray-400 bg-white"
             )}>
-              {filteredVisitors.every(v => selectedIds.has(v.id)) && <Check className="w-3.5 h-3.5" />}
+              {filteredVisitors.every(v => selectedIds.has(v.id)) && <Check className="w-4 h-4" />}
             </div>
             <span>すべて選択 / 解除</span>
           </button>
@@ -284,22 +284,22 @@ export default function ListPage() {
               )}
               onClick={() => activeTab === 'unsent' && toggleSelection(visitor.id)}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 {activeTab === 'unsent' && (
                   <div className={cn(
-                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors shrink-0",
+                    "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors shrink-0",
                     selectedIds.has(visitor.id) 
                       ? "bg-primary border-primary text-white" 
-                      : "border-gray-300 bg-white"
+                      : "border-gray-400 bg-white"
                   )}>
-                    {selectedIds.has(visitor.id) && <Check className="w-3.5 h-3.5" />}
+                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4" />}
                   </div>
                 )}
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-gray-800 text-lg">{visitor.name || '名称未設定'}</span>
+                    <span className="font-bold text-gray-800 text-lg truncate">{visitor.name || '名称未設定'}</span>
                     <span className={cn(
-                      "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
+                      "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0",
                       visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
                       visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
                       "bg-gray-100 text-gray-600"
@@ -307,10 +307,10 @@ export default function ListPage() {
                       {visitor.attribute || '未設定'}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
+                  <div className="text-sm text-gray-500 font-medium truncate">{visitor.company || ''}</div>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
                  {visitor.is_sent ? (
                    <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
                      <Check className="w-3 h-3" /> 送信済
