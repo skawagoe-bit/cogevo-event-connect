@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, BarChart3, Settings } from "lucide-react";
+import { Plus, X, BarChart3, Settings, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/app/providers";
 import { getEventsByMonth } from "@/app/actions/events";
@@ -82,6 +82,14 @@ export default function PresetPage() {
             <p className="text-gray-500 text-sm">参加するイベントを選択してください</p>
         </div>
         <div className="flex gap-2">
+            <a 
+                href="/manual.md" 
+                target="_blank"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-white hover:bg-accent hover:text-accent-foreground h-9 px-3"
+            >
+                <BookOpen className="w-4 h-4 mr-1 text-blue-500" />
+                マニュアル
+            </a>
             <Button 
                 variant="outline" 
                 size="sm" 

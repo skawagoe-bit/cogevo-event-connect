@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from "@/app/actions/events";
+import { generateEmailTemplate } from "@/app/actions/ai";
 
 interface EventItem {
   id: string;
@@ -37,6 +38,9 @@ export default function AdminEventsPage() {
   const [newAttribute, setNewAttribute] = useState("");
   const [newSegment, setNewSegment] = useState("");
   const [newRole, setNewRole] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -95,11 +99,7 @@ export default function AdminEventsPage() {
     }
   };
 
-    const [isSaving, setIsSaving] = useState(false);
-
-    // ... existing code ...
-
-    const handleSave = async () => {
+  const handleSave = async () => {
     if (!name || !eventDate) {
       alert("イベント名と開催日は必須です");
       return;
@@ -164,6 +164,28 @@ export default function AdminEventsPage() {
 
   const getTemplate = (segment: string) => {
     return emailTemplates[segment] || { subject: "", body: "" };
+  };
+
+  const handleGenerateTemplate = async () => {
+    if (!name || attributes.length === 0 || !selectedTemplateSegment) {
+      alert("AI生成には、イベント名、属性、顧客区分の情報が必要です。");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const result = await generateEmailTemplate(name, selectedTemplateSegment, attributes, roles);
+      if (result.success && result.data) {
+        handleTemplateChange(selectedTemplateSegment, 'subject', result.data.subject);
+        handleTemplateChange(selectedTemplateSegment, 'body', result.data.body);
+      } else {
+        alert("生成に失敗しました: " + result.error);
+      }
+    } catch (e: any) {
+      alert("エラーが発生しました: " + e.message);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -361,39 +383,6 @@ export default function AdminEventsPage() {
 
                 {selectedTemplateSegment && segments.includes(selectedTemplateSegment) && (
                     <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100 animate-in fade-in">
-import { generateEmailTemplate } from "@/app/actions/ai";
-import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail, Sparkles, Loader2 } from "lucide-react";
-
-// ... existing code ...
-
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  // ... existing code ...
-
-  const handleGenerateTemplate = async () => {
-    if (!name || attributes.length === 0 || !selectedTemplateSegment) {
-      alert("AI生成には、イベント名、属性、顧客区分の情報が必要です。");
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const result = await generateEmailTemplate(name, selectedTemplateSegment, attributes, roles);
-      if (result.success && result.data) {
-        handleTemplateChange(selectedTemplateSegment, 'subject', result.data.subject);
-        handleTemplateChange(selectedTemplateSegment, 'body', result.data.body);
-      } else {
-        alert("生成に失敗しました: " + result.error);
-      }
-    } catch (e: any) {
-      alert("エラーが発生しました: " + e.message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // ... return ...
-
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">
