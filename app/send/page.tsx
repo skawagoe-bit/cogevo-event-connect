@@ -1,25 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Send, CheckCircle2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockVisitors } from "@/lib/mock-data";
 
 export default function SendPage() {
   const router = useRouter();
   const [isSent, setIsSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  
-  // In a real app, calculate from actual state
-  const unsentCount = mockVisitors.filter(v => !v.isSent).length;
+  const [targetCount, setTargetCount] = useState(0);
 
+  useEffect(() => {
+    // Load selected IDs from sessionStorage
+    const storedIds = sessionStorage.getItem('send_target_ids');
+    if (storedIds) {
+      try {
+        const ids = JSON.parse(storedIds);
+        if (Array.isArray(ids)) {
+          setTargetCount(ids.length);
+        }
+      } catch (e) {
+        console.error('Failed to parse target ids', e);
+      }
+    }
+  }, []);
+  
   const handleSend = () => {
     setIsSending(true);
-    // Mock API call
+    // Mock API call - in production this would use the IDs from sessionStorage
     setTimeout(() => {
       setIsSending(false);
       setIsSent(true);
+      // Clear storage after sending
+      sessionStorage.removeItem('send_target_ids');
     }, 2000);
   };
 
@@ -74,10 +88,10 @@ export default function SendPage() {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent"></div>
           <p className="text-gray-500 mb-2 font-medium">今回の送信対象</p>
           <div className="flex items-baseline justify-center gap-1">
-             <span className="text-6xl font-black text-primary tracking-tight">{unsentCount}</span>
+             <span className="text-6xl font-black text-primary tracking-tight">{targetCount}</span>
              <span className="text-xl text-gray-400 font-bold">名</span>
           </div>
-          <p className="text-sm text-gray-400 mt-2">未送信の全訪問者</p>
+          <p className="text-sm text-gray-400 mt-2">選択された訪問者</p>
         </div>
 
         <div className="space-y-4">
@@ -115,7 +129,7 @@ export default function SendPage() {
         <Button 
           className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 shadow-xl flex items-center justify-center gap-2 disabled:opacity-70"
           onClick={handleSend}
-          disabled={isSending || unsentCount === 0}
+          disabled={isSending || targetCount === 0}
         >
           {isSending ? (
             <>
