@@ -279,7 +279,7 @@ export default function ListPage() {
               key={visitor.id} 
               className={cn(
                 "bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between group transition-all duration-200 cursor-pointer",
-                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary/50 bg-blue-50/30" : "border-gray-100",
+                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/50" : "border-gray-100",
                 "active:scale-[0.99]"
               )}
               onClick={() => activeTab === 'unsent' && toggleSelection(visitor.id)}
@@ -290,9 +290,9 @@ export default function ListPage() {
                     "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors shrink-0",
                     selectedIds.has(visitor.id) 
                       ? "bg-primary border-primary text-white" 
-                      : "border-gray-400 bg-white"
+                      : "border-gray-300 bg-white group-hover:border-primary/50"
                   )}>
-                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4" />}
+                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4 stroke-[3]" />}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
@@ -337,7 +337,7 @@ export default function ListPage() {
              disabled={selectedIds.size === 0}
           >
             <Send className="w-5 h-5" />
-            {selectedIds.size}名への一斉送信を確認する
+            選択した {selectedIds.size} 名へ一斉送信する
           </Button>
         </div>
       )}
