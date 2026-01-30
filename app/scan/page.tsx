@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createVisitor } from "@/app/actions/visitors";
 import { getProfile } from "@/app/actions/profile";
 import { useTranslation } from "@/lib/i18n/context";
+import { digitizeCardWithSansan } from "@/app/actions/sansan";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -204,13 +205,34 @@ export default function ScanPage() {
   }, [isListening]);
 
   const handleSansanMock = async () => {
+    if (!capturedImage) return;
+    
     setIsAnalyzing(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    setName("山田 太郎");
-    setCompany("Sansan株式会社");
-    setEmail("taro.yamada@example.com");
-    setIsAnalyzing(false);
-    alert("Sansanで名刺をデータ化しました");
+    try {
+        // Convert base64 to File object
+        const res = await fetch(capturedImage);
+        const blob = await res.blob();
+        const file = new File([blob], "card.jpg", { type: "image/jpeg" });
+        
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const result = await digitizeCardWithSansan(formData);
+        
+        if (result.success && result.data) {
+            setName(result.data.name || "");
+            setCompany(result.data.company || "");
+            setEmail(result.data.email || "");
+            alert("Sansanで名刺をデータ化しました");
+        } else {
+            alert("データ化に失敗しました: " + (result.error || "不明なエラー"));
+        }
+    } catch (e: any) {
+        console.error(e);
+        alert("エラーが発生しました: " + e.message);
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
   const handleRegister = async () => {
