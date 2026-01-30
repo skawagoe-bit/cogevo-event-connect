@@ -10,9 +10,11 @@ import QRCode from "react-qr-code";
 import { createClient } from "@/lib/supabase/client";
 import { createVisitor } from "@/app/actions/visitors";
 import { getProfile } from "@/app/actions/profile";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ScanPage() {
   const router = useRouter();
+  const { dict, language } = useTranslation();
   const { eventId, eventName, attributes, segments, roles } = useSettings();
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export default function ScanPage() {
     if (!eventId) {
       const savedEventId = localStorage.getItem("eventId");
       if (!savedEventId) {
-          alert("イベントが選択されていません。選択画面に戻ります。");
+          alert(dict.preset.alert_select_event);
           router.push("/preset");
       }
     }
@@ -165,7 +167,7 @@ export default function ScanPage() {
       }
 
       const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
+      recognition.lang = language === 'en' ? 'en-US' : 'ja-JP';
       recognition.continuous = true;
       recognition.interimResults = true;
 
@@ -213,7 +215,7 @@ export default function ScanPage() {
 
   const handleRegister = async () => {
     if (!selectedAttribute) {
-      alert("属性を選択してください");
+      alert(dict.scan.select_attribute);
       return;
     }
 
@@ -307,10 +309,9 @@ export default function ScanPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 animate-in fade-in duration-200" onClick={() => setShowQR(false)}>
             <div className="bg-white p-6 rounded-2xl w-full max-w-sm space-y-6 text-center" onClick={e => e.stopPropagation()}>
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-gray-800">Sansanオンライン名刺</h3>
+                <h3 className="text-xl font-bold text-gray-800">{dict.scan.qr_code}</h3>
                 <p className="text-sm text-gray-500">
-                  お客様のスマホで読み取っていただくと<br/>
-                  名刺交換ができます。
+                  {dict.scan.qr_desc}
                 </p>
               </div>
               
@@ -324,7 +325,7 @@ export default function ScanPage() {
                   />
                 ) : (
                   <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
-                    プロフィール設定から<br/>URLを登録してください
+                    {dict.scan.qr_no_url}
                   </div>
                 )}
               </div>
@@ -334,7 +335,7 @@ export default function ScanPage() {
                   onClick={() => router.push('/profile')}
                   className="w-full bg-primary text-white hover:bg-primary/90"
                 >
-                  設定画面へ
+                  {dict.common.settings}
                 </Button>
               )}
 
@@ -342,7 +343,7 @@ export default function ScanPage() {
                 onClick={() => setShowQR(false)}
                 className="w-full bg-gray-100 text-gray-600 hover:bg-gray-200"
               >
-                閉じる
+                {dict.common.close}
               </Button>
             </div>
           </div>
@@ -356,17 +357,17 @@ export default function ScanPage() {
                {!isImageConfirmed ? (
                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 animate-in fade-in">
                    <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white h-12 px-6">
-                     再撮影
+                     {dict.scan.retake}
                    </Button>
                    <Button onClick={confirmImage} className="bg-blue-600 hover:bg-blue-700 text-white h-12 px-6 shadow-lg border border-white/20">
                      <Check className="w-5 h-5 mr-2" />
-                     使用する
+                     {dict.scan.use_photo}
                    </Button>
                  </div>
                ) : (
                  <div className="absolute top-2 right-2 z-10">
                     <Button onClick={retakePhoto} variant="secondary" size="sm" className="bg-black/40 text-white hover:bg-black/60 border-none backdrop-blur-md">
-                        <RefreshCcw className="w-3 h-3 mr-1" /> 再撮影
+                        <RefreshCcw className="w-3 h-3 mr-1" /> {dict.scan.retake}
                     </Button>
                  </div>
                )}
@@ -383,14 +384,14 @@ export default function ScanPage() {
              <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center">
                <Camera className="w-12 h-12 mb-3 opacity-50" />
                <span className="text-sm font-medium tracking-wide mb-2">
-                 {hasCameraPermission === false ? "カメラへのアクセスができません" : "カメラを起動中..."}
+                 {hasCameraPermission === false ? dict.scan.camera_error : dict.scan.camera_starting}
                </span>
                {errorMessage && (
                  <span className="text-xs text-red-400 mb-4 block max-w-[200px] break-words">{errorMessage}</span>
                )}
                {hasCameraPermission === false && (
                  <Button onClick={() => startCamera()} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
-                   再試行
+                   {dict.scan.retry}
                  </Button>
                )}
              </div>
@@ -422,12 +423,12 @@ export default function ScanPage() {
                    className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-white/30 transition-colors"
                  >
                    <QrCode className="w-3.5 h-3.5" />
-                   名刺交換QR
+                   {dict.scan.qr_code}
                  </button>
                </div>
 
                <div className="absolute bottom-4 text-white/80 text-xs bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm z-10">
-                 名刺を枠内に合わせてください
+                 {dict.scan.camera_hint}
                </div>
              </>
            )}
@@ -442,11 +443,11 @@ export default function ScanPage() {
                  {isAnalyzing ? (
                    <>
                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                     解析中...
+                     {dict.scan.analyzing}
                    </>
                  ) : (
                    <>
-                     <span className="font-bold">Sansanでデータ化</span>
+                     <span className="font-bold">{dict.scan.sansan_mock_button}</span>
                    </>
                  )}
                </Button>
@@ -462,7 +463,7 @@ export default function ScanPage() {
              className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
            >
              <Camera className="w-5 h-5 text-gray-600" />
-             <span className="text-[10px] font-bold text-gray-600">名刺</span>
+             <span className="text-[10px] font-bold text-gray-600">{dict.scan.camera}</span>
            </Button>
            <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
              <ImageIcon className="w-5 h-5 text-gray-600" />
@@ -480,7 +481,7 @@ export default function ScanPage() {
            >
              <Mic className={cn("w-5 h-5", isListening ? "text-red-500" : "text-blue-600")} />
              <span className={cn("text-[10px] font-bold", isListening ? "text-red-600" : "text-blue-700")}>
-               {isListening ? "聞いています" : "商談内容入力"}
+               {isListening ? dict.scan.listening : dict.scan.voice_memo}
              </span>
            </Button>
         </div>
@@ -489,24 +490,24 @@ export default function ScanPage() {
         <div className="px-5 pt-4">
            {(name || company || email || isAnalyzing) && (
              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
-               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">名刺情報 (Sansan)</h3>
+               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">{dict.scan.card_info} (Sansan)</h3>
                <div className="space-y-2">
                  <input 
                    value={company}
                    onChange={(e) => setCompany(e.target.value)}
-                   placeholder="会社名"
+                   placeholder={dict.scan.company_name}
                    className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
                  />
                  <input 
                    value={name}
                    onChange={(e) => setName(e.target.value)}
-                   placeholder="氏名"
+                   placeholder={dict.scan.name}
                    className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
                  />
                  <input 
                    value={email}
                    onChange={(e) => setEmail(e.target.value)}
-                   placeholder="メールアドレス"
+                   placeholder={dict.scan.email}
                    className="w-full p-2 bg-white border border-blue-200 rounded text-xs text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                  />
                </div>
@@ -516,14 +517,14 @@ export default function ScanPage() {
            <div className="bg-yellow-50/50 p-3 rounded-xl border border-yellow-100">
              <label className="text-xs font-bold text-gray-500 flex items-center gap-2 mb-2 uppercase tracking-wide">
                <FileAudio className="w-3 h-3" />
-               商談メモ
+               {dict.scan.voice_memo}
              </label>
              <div className="relative">
                <textarea
                  value={memoText}
                  onChange={(e) => setMemoText(e.target.value)}
                  className="w-full p-3 bg-white border border-yellow-200 rounded-lg text-sm shadow-sm focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all min-h-[80px]"
-                 placeholder="テキスト入力、または上の「商談内容入力」ボタンで記録..."
+                 placeholder={dict.scan.memo_placeholder}
                />
                {memoText && (
                  <button 
@@ -541,7 +542,7 @@ export default function ScanPage() {
         <div className="p-5 space-y-6">
            <div className="space-y-3">
              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-               属性を選択 <span className="text-error text-xs font-normal bg-red-50 px-2 py-0.5 rounded-full">必須</span>
+               {dict.scan.select_attribute} <span className="text-error text-xs font-normal bg-red-50 px-2 py-0.5 rounded-full">{dict.common.required}</span>
              </label>
              {attributes.length > 0 ? (
                <div className="grid grid-cols-3 gap-3">
@@ -562,7 +563,7 @@ export default function ScanPage() {
                </div>
              ) : (
                <div className="text-center p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300">
-                 <p className="text-sm text-gray-500 mb-2">属性が設定されていません</p>
+                 <p className="text-sm text-gray-500 mb-2">{dict.scan.no_attributes}</p>
                  <Button 
                     variant="outline" 
                     size="sm" 
@@ -570,11 +571,11 @@ export default function ScanPage() {
                         // Temporary fallback for this session
                         // Ideally we would update context via a dedicated method if exposed, 
                         // but here we just simulate selection if needed or ask user to re-select event
-                        alert("管理画面でイベントの属性を設定するか、イベントを選び直してください。");
+                        alert(dict.preset.alert_select_event);
                         router.push('/preset');
                     }}
                  >
-                    設定を確認する
+                    {dict.scan.check_settings}
                  </Button>
                </div>
              )}
@@ -582,7 +583,7 @@ export default function ScanPage() {
 
            <div className="space-y-3">
              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-               役割・タグ <span className="text-xs text-gray-400 font-normal">複数選択可</span>
+               {dict.scan.roles} <span className="text-xs text-gray-400 font-normal">{dict.scan.multiple_choice}</span>
              </label>
              <div className="flex gap-2 flex-wrap">
                {roles.map(role => (
@@ -603,7 +604,7 @@ export default function ScanPage() {
            </div>
 
            <div className="space-y-3">
-             <label className="text-sm font-bold text-gray-700">区分（任意）</label>
+             <label className="text-sm font-bold text-gray-700">{dict.scan.segment}</label>
              <div className="flex gap-3 flex-wrap">
                {segments.map(seg => (
                  <button
@@ -631,7 +632,7 @@ export default function ScanPage() {
              onClick={handleRegister}
              disabled={!selectedAttribute}
            >
-             登録する
+             {dict.scan.register}
            </Button>
            
            <div className="h-8"></div>
@@ -649,14 +650,14 @@ export default function ScanPage() {
                 12
               </span>
             </div>
-            <span className="text-[10px] font-bold text-gray-500">本日のリスト</span>
+            <span className="text-[10px] font-bold text-gray-500">{dict.list.title}</span>
          </button>
          <button 
             className="flex flex-col items-center justify-center py-4 gap-1.5 active:bg-gray-50 transition-colors"
             onClick={() => router.push('/gift')}
          >
             <Gift className="w-6 h-6 text-gray-600" />
-            <span className="text-[10px] font-bold text-gray-500">ギフト管理</span>
+            <span className="text-[10px] font-bold text-gray-500">{dict.gift.title}</span>
          </button>
       </div>
     </div>

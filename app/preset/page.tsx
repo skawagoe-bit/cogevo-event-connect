@@ -6,9 +6,11 @@ import { Plus, X, BarChart3, Settings, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/app/providers";
 import { getEventsByMonth } from "@/app/actions/events";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function PresetPage() {
   const router = useRouter();
+  const { dict } = useTranslation();
   const { 
     eventId, setEventId,
     eventName, setEventName, 
@@ -68,7 +70,7 @@ export default function PresetPage() {
 
   const handleStart = () => {
     if (!eventId && !eventName) {
-      alert("イベントを選択してください");
+      alert(dict.preset.alert_select_event);
       return;
     }
     router.push("/scan");
@@ -78,8 +80,8 @@ export default function PresetPage() {
     <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6 bg-gray-50/50">
       <header className="mb-6 flex justify-between items-start">
         <div>
-            <h2 className="text-2xl font-bold text-gray-800">イベント選択</h2>
-            <p className="text-gray-500 text-sm">参加するイベントを選択してください</p>
+            <h2 className="text-2xl font-bold text-gray-800">{dict.preset.title}</h2>
+            <p className="text-gray-500 text-sm">{dict.preset.subtitle}</p>
         </div>
         <div className="flex gap-2">
             <a 
@@ -88,7 +90,7 @@ export default function PresetPage() {
                 className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-white hover:bg-accent hover:text-accent-foreground h-9 px-3"
             >
                 <BookOpen className="w-4 h-4 mr-1 text-blue-500" />
-                マニュアル
+                {dict.common.manual}
             </a>
             <Button 
                 variant="outline" 
@@ -97,7 +99,7 @@ export default function PresetPage() {
                 onClick={() => router.push('/admin/events')}
             >
                 <Settings className="w-4 h-4 mr-1 text-gray-500" />
-                管理
+                {dict.common.management}
             </Button>
             <Button 
                 variant="outline" 
@@ -106,7 +108,7 @@ export default function PresetPage() {
                 onClick={() => router.push('/dashboard')}
             >
                 <BarChart3 className="w-4 h-4 mr-1 text-primary" />
-                速報
+                {dict.common.report}
             </Button>
         </div>
       </header>
@@ -114,7 +116,7 @@ export default function PresetPage() {
       <div className="space-y-8 flex-1 overflow-y-auto pb-6">
         {/* Month Selector */}
         <div className="space-y-2">
-          <label className="block text-sm font-bold text-gray-700">開催月</label>
+          <label className="block text-sm font-bold text-gray-700">{dict.preset.month}</label>
           <input
             type="month"
             className="w-full p-4 border border-gray-300 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
@@ -125,10 +127,10 @@ export default function PresetPage() {
 
         {/* Event List */}
         <div className="space-y-3">
-          <label className="block text-sm font-bold text-gray-700">イベント一覧</label>
+          <label className="block text-sm font-bold text-gray-700">{dict.preset.event_list}</label>
           {events.length === 0 ? (
             <div className="p-6 text-center text-gray-400 bg-white border border-dashed border-gray-300 rounded-xl">
-              この月のイベントはありません
+              {dict.preset.no_events}
             </div>
           ) : (
             <div className="grid gap-3">
@@ -149,7 +151,7 @@ export default function PresetPage() {
                   {eventId === event.id && (
                     <div className="mt-2 text-xs font-bold text-primary flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                      選択中（設定反映済み）
+                      {dict.preset.selected}
                     </div>
                   )}
                 </button>
@@ -162,17 +164,17 @@ export default function PresetPage() {
         <div className="p-5 bg-white rounded-xl border border-gray-200 space-y-4 shadow-sm">
           <h3 className="font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
             <Settings className="w-4 h-4 text-gray-500" />
-            現在の設定内容
+            {dict.preset.current_settings}
           </h3>
           
           <div className="space-y-3">
             <div>
-              <span className="text-xs font-bold text-gray-500 block mb-1">イベント名</span>
-              <div className="font-bold text-gray-800">{eventName || "(未選択)"}</div>
+              <span className="text-xs font-bold text-gray-500 block mb-1">{dict.preset.event_name}</span>
+              <div className="font-bold text-gray-800">{eventName || dict.preset.unselected}</div>
             </div>
             
             <div>
-              <span className="text-xs font-bold text-gray-500 block mb-1">属性 ({attributes.length})</span>
+              <span className="text-xs font-bold text-gray-500 block mb-1">{dict.preset.attributes} ({attributes.length})</span>
               <div className="flex flex-wrap gap-1">
                 {attributes.map(a => (
                   <span key={a} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{a}</span>
@@ -181,7 +183,7 @@ export default function PresetPage() {
             </div>
 
             <div>
-              <span className="text-xs font-bold text-gray-500 block mb-1">役割 ({roles.length})</span>
+              <span className="text-xs font-bold text-gray-500 block mb-1">{dict.preset.roles} ({roles.length})</span>
               <div className="flex flex-wrap gap-1">
                 {roles.map(r => (
                   <span key={r} className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-700">{r}</span>
@@ -199,7 +201,7 @@ export default function PresetPage() {
           onClick={handleStart}
           disabled={!eventName}
         >
-          開始する
+          {dict.common.start}
         </Button>
       </div>
     </div>

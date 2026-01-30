@@ -6,6 +6,7 @@ import { Plus, Minus, Gift as GiftIcon, Package, Settings, X, List } from "lucid
 import { Button } from "@/components/ui/button";
 import { createGift, updateGiftStock, getGifts } from "@/app/actions/gifts";
 import { useSettings } from "@/app/providers";
+import { useTranslation } from "@/lib/i18n/context";
 
 interface GiftItem {
   id: string;
@@ -21,6 +22,7 @@ interface GiftItem {
 export default function GiftPage() {
   const router = useRouter();
   const { eventId } = useSettings();
+  const { dict } = useTranslation();
   const [gifts, setGifts] = useState<GiftItem[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -49,7 +51,7 @@ export default function GiftPage() {
         // Retry from local storage if context is empty (on reload)
         const savedEventId = localStorage.getItem("eventId");
         if (!savedEventId) {
-            alert("イベントが選択されていません。選択画面に戻ります。");
+            alert(dict.preset.alert_select_event);
             router.push("/preset");
             return;
         }
@@ -74,14 +76,14 @@ export default function GiftPage() {
     const result = await updateGiftStock(giftId, newStock);
 
     if (!result.success) {
-      alert("在庫の更新に失敗しました: " + result.error);
+      alert(dict.common.error + ": " + result.error);
       fetchGifts(); // ロールバック
     }
   };
 
   const handleAddGift = async () => {
     if (!newGiftName) {
-      alert("ギフト名を入力してください");
+      alert(dict.common.required + ": " + dict.gift.gift_name);
       return;
     }
 
@@ -100,7 +102,7 @@ export default function GiftPage() {
       setIsAddGiftModalOpen(false);
       fetchGifts();
     } else {
-      alert("ギフトの追加に失敗しました: " + result.error);
+      alert(dict.common.error + ": " + result.error);
     }
   };
 
@@ -116,7 +118,7 @@ export default function GiftPage() {
         >
           <X className="w-5 h-5 text-gray-500" />
         </Button>
-        <h1 className="text-lg font-bold text-gray-800">ギフト管理</h1>
+        <h1 className="text-lg font-bold text-gray-800">{dict.gift.title}</h1>
         <Button 
           variant="ghost" 
           size="icon" 
@@ -130,9 +132,9 @@ export default function GiftPage() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-hide">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">在庫一覧</h2>
+          <h2 className="text-xl font-bold text-gray-800">{dict.gift.stock_list}</h2>
           <Button onClick={() => setIsAddGiftModalOpen(true)} size="sm" className="bg-primary text-white shadow-md">
-            <Plus className="w-4 h-4 mr-1" /> 追加
+            <Plus className="w-4 h-4 mr-1" /> {dict.common.add}
           </Button>
         </div>
 
@@ -143,8 +145,8 @@ export default function GiftPage() {
         ) : gifts.length === 0 ? (
           <div className="text-center text-gray-500 p-10 border-2 border-dashed border-gray-200 rounded-xl bg-white/50">
             <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="font-bold text-gray-600">ギフトが登録されていません</p>
-            <p className="text-sm text-gray-400 mt-1">右上の「追加」ボタンから登録してください</p>
+            <p className="font-bold text-gray-600">{dict.gift.no_gifts}</p>
+            <p className="text-sm text-gray-400 mt-1">{dict.gift.add_hint}</p>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -160,7 +162,7 @@ export default function GiftPage() {
                 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-gray-800 truncate">{gift.name}</h3>
-                  <p className="text-xs text-gray-500">在庫数</p>
+                  <p className="text-xs text-gray-500">{dict.gift.stock}</p>
                 </div>
 
                 <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
@@ -193,7 +195,7 @@ export default function GiftPage() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-lg font-bold text-gray-800">新規ギフト追加</h3>
+              <h3 className="text-lg font-bold text-gray-800">{dict.gift.add_new}</h3>
               <button onClick={() => setIsAddGiftModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -201,17 +203,17 @@ export default function GiftPage() {
             
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">ギフト名</label>
+                <label className="text-sm font-bold text-gray-700">{dict.gift.gift_name}</label>
                 <input
                   value={newGiftName}
                   onChange={(e) => setNewGiftName(e.target.value)}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  placeholder="例: オリジナルタオル"
+                  placeholder={dict.gift.placeholder}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">初期在庫数</label>
+                <label className="text-sm font-bold text-gray-700">{dict.gift.initial_stock}</label>
                 <div className="flex items-center gap-3">
                    <button 
                      onClick={() => setNewGiftStock(Math.max(0, newGiftStock - 10))}
@@ -235,7 +237,7 @@ export default function GiftPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">画像URL (任意)</label>
+                <label className="text-sm font-bold text-gray-700">{dict.gift.image_url_optional}</label>
                 <input
                   value={newGiftImageUrl}
                   onChange={(e) => setNewGiftImageUrl(e.target.value)}
@@ -247,10 +249,10 @@ export default function GiftPage() {
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setIsAddGiftModalOpen(false)}>
-                キャンセル
+                {dict.common.cancel}
               </Button>
               <Button className="flex-1 bg-primary text-white shadow-md" onClick={handleAddGift} disabled={!newGiftName}>
-                登録する
+                {dict.gift.create}
               </Button>
             </div>
           </div>
@@ -266,14 +268,14 @@ export default function GiftPage() {
            <div className="relative">
              <List className="w-6 h-6 text-gray-400" />
            </div>
-           <span className="text-[10px] font-bold text-gray-400">本日のリスト</span>
+           <span className="text-[10px] font-bold text-gray-400">{dict.list.title}</span>
         </button>
         <button 
            className="flex flex-col items-center justify-center py-4 gap-1.5 border-l border-gray-100 active:bg-gray-50 transition-colors bg-gray-50/50"
            onClick={() => {}}
         >
            <GiftIcon className="w-6 h-6 text-primary" />
-           <span className="text-[10px] font-bold text-primary">ギフト管理</span>
+           <span className="text-[10px] font-bold text-primary">{dict.gift.title}</span>
         </button>
       </div>
     </div>
