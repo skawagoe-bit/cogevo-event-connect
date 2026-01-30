@@ -518,7 +518,7 @@ export default function ScanPage() {
 
         {/* Memo Input Area */}
         <div className="px-5 pt-4">
-           {(name || company || email || isAnalyzing) && (
+           {(capturedImage || name || company || email || isAnalyzing) && (
              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">{dict.scan.card_info} (Sansan)</h3>
                <div className="space-y-2">
