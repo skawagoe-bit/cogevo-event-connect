@@ -12,6 +12,7 @@ import { createVisitor } from "@/app/actions/visitors";
 import { getProfile } from "@/app/actions/profile";
 import { useTranslation } from "@/lib/i18n/context";
 import { digitizeCardWithSansan } from "@/app/actions/sansan";
+import { analyzeBusinessCard } from "@/app/actions/ai";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -217,25 +218,22 @@ export default function ScanPage() {
         const formData = new FormData();
         formData.append('image', file);
 
-        const result = await digitizeCardWithSansan(formData);
+        // 1. Analyze with AI for instant feedback
+        const aiResult = await analyzeBusinessCard(formData);
+        if (aiResult.success && aiResult.data) {
+            setName(aiResult.data.name || "");
+            setCompany(aiResult.data.company || "");
+            setEmail(aiResult.data.email || "");
+        }
+
+        // 2. Register to Sansan (Background process)
+        // We call this to ensure the data is eventually registered in Sansan's DB
+        const sansanResult = await digitizeCardWithSansan(formData);
         
-        if (result.success) {
-            // Sansan usually returns data asynchronously.
-            // If data is empty, it means "Uploaded, waiting for digitization".
-            if (result.data?.name) {
-                setName(result.data.name);
-                setCompany(result.data.company);
-                setEmail(result.data.email);
-                alert("Sansanでデータ化しました");
-            } else {
-                // Clear the mock data fields if they were set
-                setName("");
-                setCompany("");
-                setEmail("");
-                alert("Sansanへアップロードしました。\nデータ化完了までしばらくお待ちください。");
-            }
+        if (aiResult.success || sansanResult.success) {
+            alert("名刺を読み取りました");
         } else {
-            alert("データ化に失敗しました: " + (result.error || "不明なエラー"));
+            alert("読み取りに失敗しました");
         }
     } catch (e: any) {
         console.error(e);
