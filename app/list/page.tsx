@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Clock, Send, Search, X, Activity } from "lucide-react";
+import { ArrowLeft, Check, Clock, Send, Search, X, Activity, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import type { Database } from "@/lib/supabase/types";
+import { deleteVisitor } from "@/app/actions/visitors";
 
 type Visitor = Database['public']['Tables']['visitors']['Row'];
 
@@ -21,6 +22,25 @@ export default function ListPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("このデータを削除してもよろしいですか？")) return;
+    
+    setDeletingId(id);
+    try {
+        const result = await deleteVisitor(id);
+        if (!result.success) {
+            alert("削除に失敗しました: " + result.error);
+        }
+    } catch (error) {
+        console.error(error);
+        alert("エラーが発生しました");
+    } finally {
+        setDeletingId(null);
+    }
+  };
 
   // Initial data fetch
   useEffect(() => {

@@ -116,3 +116,31 @@ export async function createVisitor(formData: FormData) {
     }
   }
 }
+
+export async function deleteVisitor(id: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { error } = await supabase
+      .from('visitors')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    revalidatePath('/list')
+    return { success: true }
+  } catch (error) {
+    console.error('Delete visitor error:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : '削除に失敗しました' 
+    }
+  }
+}
