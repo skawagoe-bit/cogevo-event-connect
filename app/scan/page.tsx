@@ -219,11 +219,21 @@ export default function ScanPage() {
 
         const result = await digitizeCardWithSansan(formData);
         
-        if (result.success && result.data) {
-            setName(result.data.name || "");
-            setCompany(result.data.company || "");
-            setEmail(result.data.email || "");
-            alert("Sansanで名刺をデータ化しました");
+        if (result.success) {
+            // Sansan usually returns data asynchronously.
+            // If data is empty, it means "Uploaded, waiting for digitization".
+            if (result.data?.name) {
+                setName(result.data.name);
+                setCompany(result.data.company);
+                setEmail(result.data.email);
+                alert("Sansanでデータ化しました");
+            } else {
+                // Clear the mock data fields if they were set
+                setName("");
+                setCompany("");
+                setEmail("");
+                alert("Sansanへアップロードしました。\nデータ化完了までしばらくお待ちください。");
+            }
         } else {
             alert("データ化に失敗しました: " + (result.error || "不明なエラー"));
         }
