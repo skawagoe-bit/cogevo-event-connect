@@ -66,21 +66,30 @@ export async function createVisitor(formData: FormData) {
 
     if (error) throw error
 
-    // Sansan連携 (非同期で実行・ログ出力のみ)
+    // Sansan連携 (非同期で実行)
     if (validated.image_url) {
-      // 将来的にはここで画像をfetchしてBlob化して渡す
       console.log('[Sansan Sync] Triggering upload for visitor:', data.id)
       
-      // 非同期で実行（awaitしない）
-      uploadBusinessCard({ 
-        file: new Blob([]), // Mock blob for now
-        tags: [validated.attribute, 'EventID:' + validated.event_id] 
-      }).then(res => {
-        if (res.success) {
-           console.log('[Sansan Sync] Success (Mock ID):', res.id)
-           // ここでvisitorsテーブルのsync_statusを更新する処理を入れるとさらに良い
-        }
-      }).catch(e => console.error('[Sansan Sync] Error:', e))
+      // 画像データを取得
+      // image_url は公開URL前提。署名付きURLの場合は別途生成が必要。
+      const imageResponse = await fetch(validated.image_url);
+      if (imageResponse.ok) {
+          const imageBlob = await imageResponse.blob();
+          
+          // 非同期で実行（awaitしない）
+          uploadBusinessCard({ 
+            file: imageBlob, 
+            tags: [validated.attribute, 'EventID:' + validated.event_id] 
+          }).then(res => {
+            if (res.success) {
+               console.log('[Sansan Sync] Success, ID:', res.id)
+            } else {
+               console.error('[Sansan Sync] Failed:', res.error)
+            }
+          }).catch(e => console.error('[Sansan Sync] Error:', e))
+      } else {
+          console.error('[Sansan Sync] Failed to download image from Supabase');
+      }
     }
 
     // UTAGE連携 (メールアドレスがある場合のみ)
