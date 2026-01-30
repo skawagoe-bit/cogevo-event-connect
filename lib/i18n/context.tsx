@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { dictionary, Dictionary } from './dictionary';
+import { dictionary, Dictionary, termMapping } from './dictionary';
 
 type Language = 'ja' | 'en';
 
@@ -9,6 +9,7 @@ type LanguageContextType = {
   language: Language;
   setLanguage: (lang: Language) => void;
   dict: Dictionary;
+  t: (term: string) => string;
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -34,13 +35,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('language', lang);
   };
 
-  // Avoid hydration mismatch by rendering children only after loading preference
-  // Or simpler: just render. The initial state is 'ja', which matches server.
-  // If user has 'en', it will switch on client. To avoid flicker, we might want to wait,
-  // but for now, let's just render.
+  const t = (term: string) => {
+    if (language === 'en') {
+        return termMapping[term] || term;
+    }
+    return term;
+  };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, dict }}>
+    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, dict, t }}>
       {children}
     </LanguageContext.Provider>
   );

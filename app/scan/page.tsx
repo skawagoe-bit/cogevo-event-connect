@@ -14,7 +14,7 @@ import { useTranslation } from "@/lib/i18n/context";
 
 export default function ScanPage() {
   const router = useRouter();
-  const { dict, language } = useTranslation();
+  const { dict, language, t } = useTranslation();
   const { eventId, eventName, attributes, segments, roles } = useSettings();
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
@@ -557,7 +557,7 @@ export default function ScanPage() {
                          : "bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50"
                      )}
                    >
-                     {attr}
+                     {t(attr)}
                    </button>
                  ))}
                </div>
@@ -597,7 +597,7 @@ export default function ScanPage() {
                        : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
                    )}
                  >
-                   {role}
+                   {t(role)}
                  </button>
                ))}
              </div>
@@ -617,7 +617,7 @@ export default function ScanPage() {
                        : "bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50"
                    )}
                  >
-                   {seg}
+                   {t(seg)}
                  </button>
                ))}
              </div>

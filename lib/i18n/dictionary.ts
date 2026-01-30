@@ -204,3 +204,34 @@ export const dictionary = {
 };
 
 export type Dictionary = typeof dictionary.ja;
+
+// Mapping for dynamic terms
+export const termMapping: Record<string, string> = {
+    // Attributes
+    '医師': 'Doctor',
+    '看護師': 'Nurse',
+    'PT': 'PT',
+    'OT': 'OT',
+    'ST': 'ST',
+    '事務長': 'Admin Director',
+    '施設長': 'Facility Director',
+    'その他': 'Other',
+    '出展者': 'Exhibitor',
+
+    // Segments
+    '顧客': 'Customer',
+    '既存顧客': 'Existing',
+    '新規リード': 'New Lead',
+    'パートナー': 'Partner',
+    '協業': 'Partner',
+    '競合': 'Competitor',
+
+    // Roles
+    '決裁者': 'Decision Maker',
+    '決定権者': 'Decision Maker',
+    '担当者': 'Person in Charge',
+    '導入検討中': 'Considering',
+    '情報収集': 'Info Gathering',
+    '起案者': 'Proposer',
+    'ファン': 'Fan',
+};

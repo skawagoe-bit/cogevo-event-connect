@@ -10,7 +10,7 @@ import { useTranslation } from "@/lib/i18n/context";
 
 export default function PresetPage() {
   const router = useRouter();
-  const { dict } = useTranslation();
+  const { dict, t } = useTranslation();
   const { 
     eventId, setEventId,
     eventName, setEventName, 
@@ -178,7 +178,7 @@ export default function PresetPage() {
               <span className="text-xs font-bold text-gray-500 block mb-1">{dict.preset.attributes} ({attributes.length})</span>
               <div className="flex flex-wrap gap-1">
                 {attributes.map(a => (
-                  <span key={a} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{a}</span>
+                  <span key={a} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{t(a)}</span>
                 ))}
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function PresetPage() {
               <span className="text-xs font-bold text-gray-500 block mb-1">{dict.preset.roles} ({roles.length})</span>
               <div className="flex flex-wrap gap-1">
                 {roles.map(r => (
-                  <span key={r} className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-700">{r}</span>
+                  <span key={r} className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-700">{t(r)}</span>
                 ))}
               </div>
             </div>
