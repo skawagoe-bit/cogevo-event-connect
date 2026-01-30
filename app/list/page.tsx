@@ -228,9 +228,21 @@ export default function ListPage() {
           </div>
         ) : (
           filteredVisitors.map(visitor => (
-            <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
+            <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <button
+                    onClick={(e) => handleDelete(visitor.id, e)}
+                    className="text-gray-300 hover:text-red-500 transition-colors p-2 -ml-2 rounded-full hover:bg-red-50"
+                    disabled={deletingId === visitor.id}
+                >
+                    {deletingId === visitor.id ? (
+                        <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <Trash2 className="w-5 h-5" />
+                    )}
+                </button>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-gray-800 text-lg">{visitor.name || '名称未設定'}</span>
                   <span className={cn(
                     "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
@@ -242,6 +254,7 @@ export default function ListPage() {
                   </span>
                 </div>
                 <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
+              </div>
               </div>
               <div className="flex flex-col items-end gap-1">
                  {visitor.is_sent ? (
