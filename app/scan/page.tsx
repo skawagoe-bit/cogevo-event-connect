@@ -2,16 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
+import QRCode from "react-qr-code";
 import { createClient } from "@/lib/supabase/client";
 import { createVisitor } from "@/app/actions/visitors";
-
-// Dynamically import QRCode to avoid SSR issues
-const QRCode = dynamic(() => import("react-qr-code"), { ssr: false });
 
 export default function ScanPage() {
   const router = useRouter();
@@ -35,7 +32,6 @@ export default function ScanPage() {
   
   // Camera references
   const videoRef = useRef<HTMLVideoElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -124,21 +120,6 @@ export default function ScanPage() {
 
   const retakePhoto = () => {
     setCapturedImage(null);
-  };
-
-  const handleBadgeSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCapturedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const toggleVoiceInput = useCallback(() => {
@@ -420,15 +401,6 @@ export default function ScanPage() {
            )}
         </div>
 
-        {/* Hidden file input for badge/image selection */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          className="hidden"
-        />
-
         {/* Capture Actions */}
         <div className="flex gap-2 p-3 justify-center bg-white border-b overflow-x-auto">
            <Button 
@@ -439,11 +411,7 @@ export default function ScanPage() {
              <Camera className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">名刺</span>
            </Button>
-           <Button 
-             variant="secondary" 
-             onClick={handleBadgeSelect}
-             className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
-           >
+           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
              <ImageIcon className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">バッジ</span>
            </Button>
