@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,18 +9,13 @@ import { getVisitor, updateVisitor } from "@/app/actions/visitors";
 import { useSettings } from "@/app/providers";
 import { useTranslation } from "@/lib/i18n/context";
 
-export default function EditVisitorPage({ params }: { params: { id: Promise<string> } }) {
+export default function EditVisitorPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { t, dict } = useTranslation();
   const { attributes, segments } = useSettings();
   
-  // Unwrap params using React.use() or await (Next.js 15+ allows async params in components, but for client components we usually unwrap or use hook)
-  // Actually, in Next.js 15, params is a Promise. But let's handle it safely.
-  const [visitorId, setVisitorId] = useState<string | null>(null);
-
-  useEffect(() => {
-    params.id.then(setVisitorId);
-  }, [params]);
+  // Unwrap params using React.use()
+  const { id: visitorId } = use(params);
 
   const [visitor, setVisitor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
