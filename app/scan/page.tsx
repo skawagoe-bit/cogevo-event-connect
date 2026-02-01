@@ -185,8 +185,10 @@ export default function ScanPage() {
     setAudioBlob(null);
     setMemoText("");
     
-    // Force reset facingMode to environment when switching modes, just in case
-    setFacingMode('environment');
+    // Only reset facingMode if not already in environment
+    if (facingMode !== 'environment') {
+        setFacingMode('environment');
+    }
   };
 
   const confirmImage = () => {
