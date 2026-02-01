@@ -177,7 +177,25 @@ export default function ScanPage() {
     }
   }, [isBadgeMode]);
 
-  const retakePhoto = () => {
+  // Handle switching modes and auto-starting camera
+  const handleModeSwitch = (mode: 'card' | 'badge') => {
+    if (mode === 'card') {
+        setIsBadgeMode(false);
+    } else {
+        setIsBadgeMode(true);
+    }
+    
+    setCapturedImage(null);
+    setIsImageConfirmed(false);
+    setShowBadgeConfirm(false);
+    setAudioBlob(null);
+    setMemoText("");
+    
+    // Auto-start camera (it will use the current facingMode, which defaults to environment)
+    if (!streamRef.current) {
+        startCamera();
+    }
+  };
     setCapturedImage(null);
     setIsImageConfirmed(false);
     setShowBadgeConfirm(false);
@@ -719,8 +737,11 @@ export default function ScanPage() {
            <Button 
              variant="secondary" 
              onClick={() => {
-                if (isBadgeMode) switchToCardMode();
-                else takePhoto();
+                if (isBadgeMode) {
+                    handleModeSwitch('card');
+                } else {
+                    takePhoto();
+                }
              }}
              className={cn(
                 "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm active:scale-95 transition-all",
@@ -735,8 +756,11 @@ export default function ScanPage() {
            <Button 
              variant="secondary" 
              onClick={() => {
-                if (!isBadgeMode) switchToBadgeMode();
-                else takePhoto();
+                if (!isBadgeMode) {
+                    handleModeSwitch('badge');
+                } else {
+                    takePhoto();
+                }
              }}
              className={cn(
                 "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm active:scale-95 transition-all",
