@@ -230,12 +230,19 @@ export default function ScanPage() {
         // We call this to ensure the data is eventually registered in Sansan's DB
         const sansanResult = await digitizeCardWithSansan(formData);
         
-        if (aiResult.success || sansanResult.success) {
-            alert("名刺を読み取りました");
+        if (aiResult.success && aiResult.data) {
+            setName(aiResult.data.name || "");
+            setCompany(aiResult.data.company || "");
+            setEmail(aiResult.data.email || "");
+            alert("名刺を読み取りました (AI解析完了)");
         } else {
-            // alert("読み取りに失敗しました");
-            // Suppress error alert if at least one method succeeded or just failed silently
-            console.error("Scanning failed", aiResult.error, sansanResult.error);
+            // AI failed
+            const errorMessage = aiResult.error || "不明なエラー";
+            if (sansanResult.success) {
+                 alert(`Sansanへのアップロードは完了しましたが、即時解析(AI)に失敗したため画面には反映されません。\n理由: ${errorMessage}\n\n※Google Gemini APIキーが設定されているか確認してください。`);
+            } else {
+                 alert(`読み取りに失敗しました。\nAIエラー: ${errorMessage}\nSansanエラー: ${sansanResult.error}`);
+            }
         }
     } catch (e: any) {
         console.error(e);
