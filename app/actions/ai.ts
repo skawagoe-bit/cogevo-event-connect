@@ -18,7 +18,7 @@ export async function generateEmailTemplate(
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
 
     const prompt = `
     あなたは展示会や学会のブース担当者です。
@@ -79,7 +79,7 @@ export async function analyzeBusinessCard(formData: FormData) {
     const arrayBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
 
     const prompt = `
     この名刺画像を解析し、以下の情報をJSON形式で抽出してください。
