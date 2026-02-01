@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Play, Pause, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getVisitor, updateVisitor } from "@/app/actions/visitors";
@@ -29,9 +29,55 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
 
-  // Audio Player
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Voice Memo State for Edit Page
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+    } else {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("このブラウザは音声入力をサポートしていません");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP'; // Or use current language context if needed
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          setMemo(prev => prev + (prev ? " " : "") + finalTranscript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsListening(true);
+    }
+  };
 
   useEffect(() => {
     if (!visitorId) return;
@@ -244,7 +290,19 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
             
             {/* Memo */}
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1 block">{dict.scan.voice_memo}</label>
+              <label className="text-xs font-bold text-gray-500 mb-1 flex items-center justify-between">
+                <span>{dict.scan.voice_memo}</span>
+                <button 
+                    onClick={toggleVoiceInput}
+                    className={cn(
+                        "text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-colors",
+                        isListening ? "bg-red-100 text-red-600 animate-pulse" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    )}
+                >
+                    <Mic className="w-3 h-3" />
+                    {isListening ? dict.scan.listening : "音声入力"}
+                </button>
+              </label>
               <textarea 
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}

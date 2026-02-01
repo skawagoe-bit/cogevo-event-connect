@@ -358,6 +358,9 @@ export default function ScanPage() {
             let voiceMemoUrl = "";
 
             // Upload Badge Image
+            let name = "";
+            let company = "";
+            
             if (capturedImage) {
                 const imageBlob = await (await fetch(capturedImage)).blob();
                 const filename = `badge-${Date.now()}.jpg`;
@@ -371,6 +374,22 @@ export default function ScanPage() {
                     .from('visitor-uploads')
                     .getPublicUrl(filename);
                 badgeImageUrl = publicUrl;
+
+                // Analyze Badge Image
+                try {
+                    const badgeFile = new File([imageBlob], filename, { type: 'image/jpeg' });
+                    const badgeFormData = new FormData();
+                    badgeFormData.append('image', badgeFile);
+                    
+                    const apiKey = localStorage.getItem("gemini_api_key") || undefined;
+                    const aiResult = await analyzeBusinessCard(badgeFormData, apiKey);
+                    if (aiResult.success && aiResult.data) {
+                        name = aiResult.data.name || "";
+                        company = aiResult.data.company || "";
+                    }
+                } catch (aiError) {
+                    console.error("Badge analysis failed:", aiError);
+                }
             }
 
             // Upload Audio
@@ -411,6 +430,8 @@ export default function ScanPage() {
             if (badgeImageUrl) formData.append("badge_image_url", badgeImageUrl);
             if (voiceMemoUrl) formData.append("voice_memo_url", voiceMemoUrl);
             if (transcript) formData.append("memo", transcript);
+            if (name) formData.append("name", name);
+            if (company) formData.append("company", company);
             formData.append("process_status", "pending_entry");
 
             const result = await createVisitor(formData);
