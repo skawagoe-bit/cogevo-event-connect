@@ -78,10 +78,6 @@ export async function analyzeBusinessCard(formData: FormData) {
     const arrayBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
-    // Try gemini-1.5-flash first
-    const modelName = 'gemini-1.5-flash';
-    const model = genAI.getGenerativeModel({ model: modelName });
-
     const prompt = `
     この名刺画像を解析し、以下の情報をJSON形式で抽出してください。
     
@@ -98,48 +94,62 @@ export async function analyzeBusinessCard(formData: FormData) {
     - 値が見つからない場合は空文字 "" にしてください。
     `;
 
-    try {
-        const result = await model.generateContent([
-          prompt,
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: file.type || 'image/jpeg',
-            },
-          },
-        ]);
+    // Try multiple models in order of preference/speed
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+    let lastError: any = null;
 
-        const response = await result.response;
-        const text = response.text();
-
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('名刺情報の解析に失敗しました');
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Trying Gemini model: ${modelName}`);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            
+            const result = await model.generateContent([
+              prompt,
+              {
+                inlineData: {
+                  data: base64Image,
+                  mimeType: file.type || 'image/jpeg',
+                },
+              },
+            ]);
+    
+            const response = await result.response;
+            const text = response.text();
+    
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+              throw new Error(`名刺情報の解析に失敗しました (${modelName})`);
+            }
+    
+            const json = JSON.parse(jsonMatch[0]);
+    
+            return { 
+              success: true, 
+              data: {
+                company: json.company,
+                name: json.name,
+                email: json.email,
+                position: json.position,
+                department: json.department
+              }
+            }
+        } catch (genError: any) {
+            console.warn(`Model ${modelName} failed:`, genError.message);
+            lastError = genError;
+            // If it's not a 404/Not Found, it might be a transient error, but we continue trying other models anyway
+            // if it IS a 404, we definitely want to try the next one.
         }
-
-        const json = JSON.parse(jsonMatch[0]);
-
-        return { 
-          success: true, 
-          data: {
-            company: json.company,
-            name: json.name,
-            email: json.email,
-            position: json.position,
-            department: json.department
-          }
-        }
-    } catch (genError: any) {
-        // If 404/not found, try to list models and return that info for debugging
-        if (genError.message && (genError.message.includes('404') || genError.message.includes('not found'))) {
-             try {
-                 throw new Error(`モデル ${modelName} が見つかりませんでした。APIキーが正しいか、Google AI Studioで該当モデルが有効か確認してください。Original: ${genError.message}`);
-             } catch (e) {
-                 throw genError;
-             }
-        }
-        throw genError;
     }
+
+    // If all models fail
+    if (lastError) {
+        if (lastError.message && (lastError.message.includes('404') || lastError.message.includes('not found'))) {
+             throw new Error(`利用可能なGeminiモデルが見つかりませんでした。APIキーの権限設定またはモデルの利用可否を確認してください。`);
+        }
+        throw lastError;
+    }
+    
+    throw new Error('不明なエラーが発生しました');
 
   } catch (error: any) {
     console.error('Business Card Analysis Error:', error);
