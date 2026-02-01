@@ -26,7 +26,7 @@ const updateVisitorSchema = z.object({
   id: z.string().uuid(),
   name: z.string().nullable().optional(),
   company: z.string().nullable().optional(),
-  email: z.string().email().nullable().optional().or(z.literal('')),
+  email: z.string().nullable().optional().or(z.literal('')),
   attribute: z.string().min(1, '属性は必須です'),
   segment: z.string().nullable().optional(),
   memo: z.string().nullable().optional(),
