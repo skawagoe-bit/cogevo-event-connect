@@ -3,8 +3,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { auth } from '@clerk/nextjs/server'
 
-// Gemini API Key: Using the provided key as default if env var is missing
-// In a real production scenario, this should be exclusively in environment variables.
+// Gemini API Key: Using the provided key as default
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCq-WG2oUTCS3_odCj3oQTPJZkXObfEyV8';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
@@ -18,7 +17,8 @@ export async function generateEmailTemplate(
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use gemini-1.5-flash as default
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
     あなたは展示会や学会のブース担当者です。
@@ -44,7 +44,6 @@ export async function generateEmailTemplate(
     const response = await result.response;
     const text = response.text();
 
-    // Extract JSON from response (handling potential markdown code blocks)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('AIからの応答を解析できませんでした');
@@ -79,7 +78,9 @@ export async function analyzeBusinessCard(formData: FormData) {
     const arrayBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Try gemini-1.5-flash first
+    const modelName = 'gemini-1.5-flash';
+    const model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = `
     この名刺画像を解析し、以下の情報をJSON形式で抽出してください。
@@ -97,35 +98,52 @@ export async function analyzeBusinessCard(formData: FormData) {
     - 値が見つからない場合は空文字 "" にしてください。
     `;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: file.type || 'image/jpeg',
-        },
-      },
-    ]);
+    try {
+        const result = await model.generateContent([
+          prompt,
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: file.type || 'image/jpeg',
+            },
+          },
+        ]);
 
-    const response = await result.response;
-    const text = response.text();
+        const response = await result.response;
+        const text = response.text();
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('名刺情報の解析に失敗しました');
-    }
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('名刺情報の解析に失敗しました');
+        }
 
-    const json = JSON.parse(jsonMatch[0]);
+        const json = JSON.parse(jsonMatch[0]);
 
-    return { 
-      success: true, 
-      data: {
-        company: json.company,
-        name: json.name,
-        email: json.email,
-        position: json.position,
-        department: json.department
-      }
+        return { 
+          success: true, 
+          data: {
+            company: json.company,
+            name: json.name,
+            email: json.email,
+            position: json.position,
+            department: json.department
+          }
+        }
+    } catch (genError: any) {
+        // If 404/not found, try to list models and return that info for debugging
+        if (genError.message && (genError.message.includes('404') || genError.message.includes('not found'))) {
+             try {
+                 // Unfortunately listModels is not easily available on the client instance directly in this version pattern
+                 // But we can try to fall back to 'gemini-pro-vision' if 1.5 flash fails? 
+                 // No, gemini-pro-vision is deprecated.
+                 
+                 // Let's just return a very specific error asking to check the API key project
+                 throw new Error(`モデル ${modelName} が見つかりませんでした。APIキーが正しいか、Google AI Studioで該当モデルが有効か確認してください。Original: ${genError.message}`);
+             } catch (e) {
+                 throw genError;
+             }
+        }
+        throw genError;
     }
 
   } catch (error: any) {
