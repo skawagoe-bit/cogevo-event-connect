@@ -22,6 +22,17 @@ const createVisitorSchema = z.object({
   process_status: z.string().default('completed'), // 'completed' or 'pending_entry'
 })
 
+const updateVisitorSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional().or(z.literal('')),
+  attribute: z.string().min(1, '属性は必須です'),
+  segment: z.string().nullable().optional(),
+  memo: z.string().nullable().optional(),
+  process_status: z.literal('completed'),
+})
+
 export async function createVisitor(formData: FormData) {
   try {
     const { userId } = await auth()
@@ -93,6 +104,58 @@ export async function createVisitor(formData: FormData) {
   }
 }
 
+export async function updateVisitor(formData: FormData) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const rawData = {
+      id: formData.get('id'),
+      name: formData.get('name'),
+      company: formData.get('company'),
+      email: formData.get('email'),
+      attribute: formData.get('attribute'),
+      segment: formData.get('segment'),
+      memo: formData.get('memo'),
+      process_status: 'completed',
+    }
+
+    const validated = updateVisitorSchema.parse(rawData)
+
+    const { data, error } = await supabase
+      .from('visitors')
+      .update({
+        name: validated.name || null,
+        company: validated.company || null,
+        email: validated.email || null,
+        attribute: validated.attribute,
+        segment: validated.segment || null,
+        memo: validated.memo || null,
+        process_status: validated.process_status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', validated.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    revalidatePath('/list')
+    return { success: true, data }
+  } catch (error: any) {
+    console.error('Update visitor error:', error)
+    return { 
+      success: false, 
+      error: error.message || '訪問者の更新に失敗しました' 
+    }
+  }
+}
+
 export async function getVisitors(eventId: string) {
   try {
     const { userId } = await auth()
@@ -120,3 +183,31 @@ export async function getVisitors(eventId: string) {
     }
   }
 }
+
+export async function getVisitor(id: string) {
+    try {
+      const { userId } = await auth()
+      if (!userId) throw new Error('認証が必要です')
+  
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+  
+      const { data, error } = await supabase
+        .from('visitors')
+        .select('*')
+        .eq('id', id)
+        .single()
+  
+      if (error) throw error
+  
+      return { success: true, data }
+    } catch (error: any) {
+      console.error('Get visitor error:', error)
+      return { 
+        success: false, 
+        error: error.message || '訪問者データの取得に失敗しました' 
+      }
+    }
+  }

@@ -18,7 +18,7 @@ export default function ListPage() {
   const router = useRouter();
   const { dict, t } = useTranslation();
   const { eventId, attributes } = useSettings();
-  const [activeTab, setActiveTab] = useState<'unsent' | 'sent'>('unsent');
+  const [activeTab, setActiveTab] = useState<'unsent' | 'sent' | 'pending'>('pending');
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -43,6 +43,15 @@ export default function ListPage() {
       
       if (result.success) {
         setVisitors(result.data as Visitor[] || []);
+        
+        // Auto-select Pending tab if there are pending items
+        const pendingItems = (result.data as Visitor[]).filter(v => v.process_status === 'pending_entry');
+        if (pendingItems.length > 0) {
+            setActiveTab('pending');
+        } else {
+            setActiveTab('unsent');
+        }
+
       } else {
         console.error('Error fetching visitors:', result.error);
       }
@@ -61,6 +70,7 @@ export default function ListPage() {
     (payload) => {
       if (payload.eventType === 'INSERT') {
         setVisitors((prev) => [payload.new, ...prev]);
+        // If new pending item, switch tab? Maybe annoying.
       } else if (payload.eventType === 'UPDATE') {
         setVisitors((prev) => 
           prev.map((v) => (v.id === payload.new.id ? payload.new : v))
@@ -76,8 +86,13 @@ export default function ListPage() {
   // Filter logic
   const filteredVisitors = visitors.filter(v => {
     // Tab filter
-    if (activeTab === 'unsent' && v.is_sent) return false;
-    if (activeTab === 'sent' && !v.is_sent) return false;
+    if (activeTab === 'pending') {
+        if (v.process_status !== 'pending_entry') return false;
+    } else {
+        if (v.process_status === 'pending_entry') return false;
+        if (activeTab === 'unsent' && v.is_sent) return false;
+        if (activeTab === 'sent' && !v.is_sent) return false;
+    }
     
     // Attribute filter
     if (selectedAttribute && v.attribute !== selectedAttribute) return false;
@@ -94,8 +109,15 @@ export default function ListPage() {
     return true;
   });
 
-  const unsentCount = visitors.filter(v => !v.is_sent).length;
-  const sentCount = visitors.filter(v => v.is_sent).length;
+  const unsentCount = visitors.filter(v => !v.is_sent && v.process_status !== 'pending_entry').length;
+  const sentCount = visitors.filter(v => v.is_sent && v.process_status !== 'pending_entry').length;
+  const pendingCount = visitors.filter(v => v.process_status === 'pending_entry').length;
+
+  const handleVisitorClick = (visitor: Visitor) => {
+    if (activeTab === 'pending') {
+        router.push(`/visitor/${visitor.id}/edit`);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -173,11 +195,27 @@ export default function ListPage() {
         </div>
       )}
 
-      <div className="p-4 flex gap-3 shrink-0">
+      <div className="p-4 flex gap-3 shrink-0 overflow-x-auto">
+        <button 
+          onClick={() => setActiveTab('pending')}
+          className={cn(
+            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
+            activeTab === 'pending' 
+              ? "bg-purple-600 text-white shadow-md ring-2 ring-purple-600/20" 
+              : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
+          )}
+        >
+          <span>{dict.list.tab_pending}</span>
+          <span className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
+              activeTab === 'pending' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+          )}>{pendingCount}</span>
+        </button>
+        
         <button 
           onClick={() => setActiveTab('unsent')}
           className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2",
+            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
             activeTab === 'unsent' 
               ? "bg-primary text-white shadow-md ring-2 ring-primary/20" 
               : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
@@ -192,7 +230,7 @@ export default function ListPage() {
         <button 
           onClick={() => setActiveTab('sent')}
           className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2",
+            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
             activeTab === 'sent' 
               ? "bg-gray-800 text-white shadow-md ring-2 ring-gray-800/20" 
               : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
@@ -218,23 +256,45 @@ export default function ListPage() {
           </div>
         ) : (
           filteredVisitors.map(visitor => (
-            <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-800 text-lg">{visitor.name || dict.list.name_not_set}</span>
-                  <span className={cn(
-                    "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
-                    visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
-                    visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
-                    "bg-gray-100 text-gray-600"
-                  )}>
-                    {t(visitor.attribute || dict.list.not_set)}
-                  </span>
+            <div 
+                key={visitor.id} 
+                onClick={() => handleVisitorClick(visitor)}
+                className={cn(
+                    "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100",
+                    activeTab === 'pending' ? "cursor-pointer hover:border-purple-300" : ""
+                )}
+            >
+              <div className="flex items-center gap-3">
+                {activeTab === 'pending' && visitor.badge_image_url && (
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                        <img src={visitor.badge_image_url} className="w-full h-full object-cover" alt="Badge" />
+                    </div>
+                )}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-gray-800 text-lg">
+                        {activeTab === 'pending' ? dict.list.pending_label : (visitor.name || dict.list.name_not_set)}
+                    </span>
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
+                      visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
+                      visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
+                      "bg-gray-100 text-gray-600"
+                    )}>
+                      {t(visitor.attribute || dict.list.not_set)}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 font-medium">
+                    {activeTab === 'pending' ? dict.list.pending_desc : (visitor.company || '')}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                 {visitor.is_sent ? (
+                 {activeTab === 'pending' ? (
+                   <span className="text-purple-600 text-xs font-bold flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-full border border-purple-100">
+                     <Clock className="w-3 h-3" /> {dict.common.edit}
+                   </span>
+                 ) : visitor.is_sent ? (
                    <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
                      <Check className="w-3 h-3" /> {dict.list.tab_sent}
                    </span>
