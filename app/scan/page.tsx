@@ -43,6 +43,12 @@ export default function ScanPage() {
   const [memoText, setMemoText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isBadgeMode, setIsBadgeMode] = useState(false);
+  const [showBadgeConfirm, setShowBadgeConfirm] = useState(false);
   
   const [showQR, setShowQR] = useState(false);
   const [mySansanUrl, setMySansanUrl] = useState<string | null>(null);
@@ -129,6 +135,24 @@ export default function ScanPage() {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
 
+  const switchToBadgeMode = () => {
+    setIsBadgeMode(true);
+    setCapturedImage(null);
+    setIsImageConfirmed(false);
+    setShowBadgeConfirm(false);
+    setAudioBlob(null);
+    setMemoText("");
+  };
+
+  const switchToCardMode = () => {
+    setIsBadgeMode(false);
+    setCapturedImage(null);
+    setIsImageConfirmed(false);
+    setShowBadgeConfirm(false);
+    setAudioBlob(null);
+    setMemoText("");
+  };
+
   const takePhoto = useCallback(() => {
     if (!videoRef.current) return;
     
@@ -141,14 +165,23 @@ export default function ScanPage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
       setCapturedImage(imageUrl);
-      setIsImageConfirmed(false);
+      
+      if (isBadgeMode) {
+        setIsImageConfirmed(true);
+        setShowBadgeConfirm(true);
+      } else {
+        setIsImageConfirmed(false);
+      }
+
       if (navigator.vibrate) navigator.vibrate(50);
     }
-  }, []);
+  }, [isBadgeMode]);
 
   const retakePhoto = () => {
     setCapturedImage(null);
     setIsImageConfirmed(false);
+    setShowBadgeConfirm(false);
+    setAudioBlob(null);
   };
 
   const confirmImage = () => {
@@ -156,6 +189,44 @@ export default function ScanPage() {
   };
 
   const toggleVoiceInput = useCallback(() => {
+    // If in badge mode, we use MediaRecorder for audio file
+    if (isBadgeMode) {
+      if (isRecording) {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+        }
+      } else {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                audioChunksRef.current.push(event.data);
+              }
+            };
+
+            mediaRecorder.onstop = () => {
+              const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+              setAudioBlob(audioBlob);
+              stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+          })
+          .catch(err => {
+            console.error("Error accessing microphone:", err);
+            alert("マイクへのアクセスに失敗しました");
+          });
+      }
+      return;
+    }
+
+    // Normal mode: Speech to Text
     if (isListening) {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -253,6 +324,79 @@ export default function ScanPage() {
   };
 
   const handleRegister = async () => {
+    // Badge Mode Registration
+    if (isBadgeMode) {
+        if (!eventId) {
+            alert("イベントが選択されていません。トップに戻ってイベントを選択してください。");
+            return;
+        }
+
+        try {
+            const supabase = createClient();
+            let badgeImageUrl = "";
+            let voiceMemoUrl = "";
+
+            // Upload Badge Image
+            if (capturedImage) {
+                const imageBlob = await (await fetch(capturedImage)).blob();
+                const filename = `badge-${Date.now()}.jpg`;
+                const { error } = await supabase.storage
+                    .from('visitor-uploads')
+                    .upload(filename, imageBlob);
+                
+                if (error) throw error;
+                
+                const { data: { publicUrl } } = supabase.storage
+                    .from('visitor-uploads')
+                    .getPublicUrl(filename);
+                badgeImageUrl = publicUrl;
+            }
+
+            // Upload Audio
+            if (audioBlob) {
+                const filename = `audio-${Date.now()}.webm`;
+                const { error } = await supabase.storage
+                    .from('visitor-uploads')
+                    .upload(filename, audioBlob);
+                
+                if (error) throw error;
+                
+                const { data: { publicUrl } } = supabase.storage
+                    .from('visitor-uploads')
+                    .getPublicUrl(filename);
+                voiceMemoUrl = publicUrl;
+            }
+
+            const formData = new FormData();
+            formData.append("event_id", eventId);
+            // Default attribute for pending entry
+            formData.append("attribute", "その他"); 
+            if (badgeImageUrl) formData.append("badge_image_url", badgeImageUrl);
+            if (voiceMemoUrl) formData.append("voice_memo_url", voiceMemoUrl);
+            formData.append("process_status", "pending_entry");
+
+            const result = await createVisitor(formData);
+            
+            if (result.success) {
+                alert(dict.scan.saved_badge);
+                // Reset state
+                setCapturedImage(null);
+                setAudioBlob(null);
+                setShowBadgeConfirm(false);
+                setIsBadgeMode(false); // Optionally stay in badge mode? For now reset.
+                router.push("/list"); // Or stay on scan?
+            } else {
+                console.error(result.error);
+                alert("登録エラー: " + result.error);
+            }
+
+        } catch (err: any) {
+            console.error("Badge registration error:", err);
+            alert("登録処理中にエラーが発生しました: " + err.message);
+        }
+        return;
+    }
+
     if (!selectedAttribute) {
       alert(dict.scan.select_attribute);
       return;
@@ -343,6 +487,62 @@ export default function ScanPage() {
 
       <div className="flex-1 overflow-y-auto pb-24 scrollbar-hide relative">
         
+        {/* Badge Confirmation UI */}
+        {showBadgeConfirm && (
+            <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in">
+                <div className="relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
+                    <img src={capturedImage!} alt="Badge" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                        <span className="text-white font-bold text-lg drop-shadow-md">{dict.scan.badge_image}</span>
+                    </div>
+                </div>
+
+                <div className="w-full max-w-sm space-y-4">
+                    <Button
+                        onClick={toggleVoiceInput}
+                        variant="outline"
+                        className={cn(
+                            "w-full h-16 text-lg font-bold rounded-xl border-2 transition-all",
+                            isRecording 
+                                ? "bg-red-500/20 border-red-500 text-red-500 animate-pulse" 
+                                : audioBlob 
+                                    ? "bg-green-500/20 border-green-500 text-green-500"
+                                    : "bg-white/10 border-white/30 text-white hover:bg-white/20"
+                        )}
+                    >
+                        {isRecording ? (
+                            <><Mic className="w-6 h-6 mr-2 animate-pulse" /> {dict.scan.recording}</>
+                        ) : audioBlob ? (
+                            <><Check className="w-6 h-6 mr-2" /> {dict.scan.recording_complete}</>
+                        ) : (
+                            <><Mic className="w-6 h-6 mr-2" /> {dict.scan.record_voice_memo}</>
+                        )}
+                    </Button>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                            onClick={retakePhoto}
+                            variant="secondary"
+                            className="h-14 bg-white/10 text-white hover:bg-white/20 border-white/10"
+                        >
+                            <RefreshCcw className="w-5 h-5 mr-2" />
+                            {dict.scan.retake}
+                        </Button>
+                        <Button 
+                            onClick={handleRegister}
+                            className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-900/50"
+                        >
+                            {dict.common.save}
+                        </Button>
+                    </div>
+                    <p className="text-white/50 text-xs text-center mt-4">
+                        {dict.scan.save_later_list}
+                    </p>
+                </div>
+            </div>
+        )}
+
         {/* QR Code Overlay Modal */}
         {showQR && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 animate-in fade-in duration-200" onClick={() => setShowQR(false)}>
@@ -498,21 +698,43 @@ export default function ScanPage() {
         <div className="flex gap-2 p-3 justify-center bg-white border-b overflow-x-auto">
            <Button 
              variant="secondary" 
-             onClick={takePhoto}
-             className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
+             onClick={() => {
+                if (isBadgeMode) switchToCardMode();
+                else takePhoto();
+             }}
+             className={cn(
+                "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm active:scale-95 transition-all",
+                !isBadgeMode 
+                    ? "bg-blue-50 border-blue-200 text-blue-700 ring-2 ring-blue-100 ring-offset-2" 
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-100 text-gray-600"
+             )}
            >
-             <Camera className="w-5 h-5 text-gray-600" />
-             <span className="text-[10px] font-bold text-gray-600">{dict.scan.camera}</span>
-           </Button>
-           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
-             <ImageIcon className="w-5 h-5 text-gray-600" />
-             <span className="text-[10px] font-bold text-gray-600">バッジ</span>
+             <Camera className="w-5 h-5" />
+             <span className="text-[10px] font-bold">{dict.scan.camera}</span>
            </Button>
            <Button 
              variant="secondary" 
+             onClick={() => {
+                if (!isBadgeMode) switchToBadgeMode();
+                else takePhoto();
+             }}
+             className={cn(
+                "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm active:scale-95 transition-all",
+                isBadgeMode 
+                    ? "bg-purple-50 border-purple-200 text-purple-700 ring-2 ring-purple-100 ring-offset-2" 
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-100 text-gray-600"
+             )}
+           >
+             <ImageIcon className="w-5 h-5" />
+             <span className="text-[10px] font-bold">{dict.scan.badge}</span>
+           </Button>
+           <Button  
+             variant="secondary" 
              onClick={toggleVoiceInput}
+             disabled={isBadgeMode} // Disable voice button in navbar when in badge mode (handled in confirm screen)
              className={cn(
                "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm transition-all",
+               isBadgeMode ? "opacity-30 grayscale cursor-not-allowed" : "",
                isListening
                  ? "bg-red-50 border-red-200 animate-pulse" 
                  : "bg-blue-50 border-blue-100 hover:bg-blue-100"
