@@ -130,6 +130,7 @@ export const dictionary = {
       sansan_desc_2: 'ここで設定したURLが、スキャン画面の「名刺交換QR」として表示されます。',
       saved: '保存しました',
       save_failed: '保存に失敗しました',
+      invalid_email: 'メールアドレスの形式が正しくありません',
     },
     menu: {
       dashboard: 'ダッシュボード',
@@ -273,6 +274,7 @@ export const dictionary = {
       sansan_desc_2: 'The URL set here will be displayed as "My QR" on the scan screen.',
       saved: 'Saved successfully',
       save_failed: 'Failed to save',
+      invalid_email: 'Invalid email format',
     },
     menu: {
       dashboard: 'Dashboard',

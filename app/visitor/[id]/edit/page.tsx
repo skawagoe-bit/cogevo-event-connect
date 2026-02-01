@@ -61,6 +61,12 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
+    // Email validation
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert(dict.profile.invalid_email);
+        return;
+    }
+
     setSaving(true);
     const formData = new FormData();
     formData.append("id", visitorId!);
