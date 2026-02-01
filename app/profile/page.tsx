@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const [sansanUrl, setSansanUrl] = useState("");
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -24,6 +25,11 @@ export default function ProfilePage() {
         setFullName(result.data.full_name || "");
         setDepartment(result.data.department || "");
       }
+      
+      // Load API Key from local storage
+      const savedKey = localStorage.getItem("gemini_api_key");
+      if (savedKey) setApiKey(savedKey);
+
       setLoading(false);
     };
     loadProfile();
@@ -31,6 +37,14 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setSaving(true);
+    
+    // Save API Key to local storage
+    if (apiKey) {
+        localStorage.setItem("gemini_api_key", apiKey);
+    } else {
+        localStorage.removeItem("gemini_api_key");
+    }
+
     const formData = new FormData();
     formData.append("sansan_url", sansanUrl);
     formData.append("full_name", fullName);
@@ -98,6 +112,21 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                   {dict.profile.sansan_desc_1}<br/>
                   {dict.profile.sansan_desc_2}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Google Gemini API Key (任意)</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="AIza..."
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  AI解析（名刺の文字起こし）に使用するAPIキーを設定できます。<br/>
+                  未設定の場合は共有キーが使用されますが、制限により動作しない場合があります。
                 </p>
               </div>
 

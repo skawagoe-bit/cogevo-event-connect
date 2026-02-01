@@ -290,7 +290,8 @@ export default function ScanPage() {
         formData.append('image', file);
 
         // 1. Analyze with AI for instant feedback
-        const aiResult = await analyzeBusinessCard(formData);
+        const apiKey = localStorage.getItem("gemini_api_key") || undefined;
+        const aiResult = await analyzeBusinessCard(formData, apiKey);
         if (aiResult.success && aiResult.data) {
             setName(aiResult.data.name || "");
             setCompany(aiResult.data.company || "");
@@ -310,7 +311,9 @@ export default function ScanPage() {
             // AI failed
             const errorMessage = aiResult.error || "不明なエラー";
             if (sansanResult.success) {
-                 alert(`Sansanへのアップロードは完了しましたが、即時解析(AI)に失敗したため画面には反映されません。\n理由: ${errorMessage}\n\n※Google Gemini APIキーが設定されているか確認してください。`);
+                 // Suppress the big alert, just notify user to input manually
+                 console.warn("AI Analysis failed but Sansan upload succeeded:", errorMessage);
+                 alert("Sansanへのアップロードが完了しました。\n※AI解析は利用できなかったため、名刺情報は手動で入力してください。");
             } else {
                  alert(`読み取りに失敗しました。\nAIエラー: ${errorMessage}\nSansanエラー: ${sansanResult.error}`);
             }

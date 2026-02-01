@@ -65,7 +65,7 @@ export async function generateEmailTemplate(
   }
 }
 
-export async function analyzeBusinessCard(formData: FormData) {
+export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
   try {
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
@@ -74,6 +74,10 @@ export async function analyzeBusinessCard(formData: FormData) {
     if (!file) {
       return { success: false, error: '画像ファイルがありません' }
     }
+
+    // Use provided key or env key or default
+    const keyToUse = apiKey || GEMINI_API_KEY;
+    const client = new GoogleGenerativeAI(keyToUse);
 
     const arrayBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString('base64');
@@ -101,7 +105,7 @@ export async function analyzeBusinessCard(formData: FormData) {
     for (const modelName of modelsToTry) {
         try {
             console.log(`Trying Gemini model: ${modelName}`);
-            const model = genAI.getGenerativeModel({ model: modelName });
+            const model = client.getGenerativeModel({ model: modelName });
             
             const result = await model.generateContent([
               prompt,
