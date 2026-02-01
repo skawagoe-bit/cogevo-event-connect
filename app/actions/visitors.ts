@@ -16,6 +16,10 @@ const createVisitorSchema = z.object({
   image_url: z.string().nullable().optional(),
   audio_url: z.string().nullable().optional(),
   memo: z.string().nullable().optional(),
+  // New fields for badge flow
+  badge_image_url: z.string().nullable().optional(),
+  voice_memo_url: z.string().nullable().optional(),
+  process_status: z.string().default('completed'), // 'completed' or 'pending_entry'
 })
 
 export async function createVisitor(formData: FormData) {
@@ -40,6 +44,10 @@ export async function createVisitor(formData: FormData) {
       image_url: formData.get('image_url'),
       audio_url: formData.get('audio_url'),
       memo: formData.get('memo'),
+      // New fields
+      badge_image_url: formData.get('badge_image_url'),
+      voice_memo_url: formData.get('voice_memo_url'),
+      process_status: formData.get('process_status') || 'completed',
     }
 
     console.log("Received raw data in Server Action:", rawData);
@@ -58,6 +66,11 @@ export async function createVisitor(formData: FormData) {
         image_url: validated.image_url || null,
         audio_url: validated.audio_url || null,
         memo: validated.memo || null,
+        // New columns
+        badge_image_url: validated.badge_image_url || null,
+        voice_memo_url: validated.voice_memo_url || null,
+        process_status: validated.process_status,
+        
         is_sent: false,
         sync_status: 'pending'
       })
