@@ -15,7 +15,7 @@ const rankings = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { dict } = useTranslation();
+  const { dict, t } = useTranslation();
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -85,7 +85,7 @@ export default function DashboardPage() {
                 
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-gray-800 truncate">{user.name}</div>
-                  <div className="text-xs text-gray-400">{user.role}</div>
+                  <div className="text-xs text-gray-400">{t(user.role)}</div>
                 </div>
 
                 <div className="text-right">

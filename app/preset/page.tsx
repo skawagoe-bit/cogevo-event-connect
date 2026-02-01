@@ -10,7 +10,7 @@ import { useTranslation } from "@/lib/i18n/context";
 
 export default function PresetPage() {
   const router = useRouter();
-  const { dict, t } = useTranslation();
+  const { dict, t, language } = useTranslation();
   const { 
     eventId, setEventId,
     eventName, setEventName, 
@@ -42,7 +42,9 @@ export default function PresetPage() {
 
   const handleEventSelect = (event: any) => {
     setEventId(event.id);
-    setEventName(event.name);
+    // Use English name if available and language is English, otherwise fallback to Japanese name
+    const displayName = (language === 'en' && event.name_en) ? event.name_en : event.name;
+    setEventName(displayName);
     
     // Load presets if available
     // Always update attributes, falling back to empty array if not present.
@@ -143,10 +145,12 @@ export default function PresetPage() {
                     eventId === event.id
                       ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
                       : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="font-bold text-lg text-gray-800">{event.name}</div>
-                  <div className="text-sm text-gray-500 mt-1">
+                          }`}
+                        >
+                          <div className="font-bold text-lg text-gray-800">
+                            {(language === 'en' && event.name_en) ? event.name_en : event.name}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
                     {new Date(event.event_date).toLocaleDateString('ja-JP')}
                   </div>
                   {eventId === event.id && (

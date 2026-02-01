@@ -234,4 +234,8 @@ export const termMapping: Record<string, string> = {
     '情報収集': 'Info Gathering',
     '起案者': 'Proposer',
     'ファン': 'Fan',
+    '営業1課': 'Sales Div 1',
+    '営業2課': 'Sales Div 2',
+    '開発部': 'R&D',
+    '営業部': 'Sales Dept',
 };

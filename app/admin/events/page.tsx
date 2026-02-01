@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Plus, X, Edit, Trash2, ChevronLeft, Save, Calendar, Tag, Layers, Users, Mail, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from "@/app/actions/events";
-import { generateEmailTemplate } from "@/app/actions/ai";
+import { generateEmailTemplate, translateText } from "@/app/actions/ai";
 
 interface EventItem {
   id: string;
   name: string;
+  name_en?: string;
   event_date: string;
   attributes_preset?: string[];
   segments_preset?: string[];
@@ -26,6 +27,7 @@ export default function AdminEventsPage() {
 
   // Form State
   const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [attributes, setAttributes] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
@@ -41,6 +43,7 @@ export default function AdminEventsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -59,6 +62,7 @@ export default function AdminEventsPage() {
 
   const resetForm = () => {
     setName("");
+    setNameEn("");
     setEventDate(new Date().toISOString().slice(0, 10));
     setAttributes(["医師", "看護師", "PT", "OT", "ST", "事務長", "施設長", "その他"]);
     setSegments(["パートナー", "既存顧客", "新規リード", "競合"]);
@@ -78,6 +82,7 @@ export default function AdminEventsPage() {
   const handleOpenEdit = (event: EventItem) => {
     setEditingEvent(event);
     setName(event.name);
+    setNameEn(event.name_en || "");
     setEventDate(event.event_date.slice(0, 10)); // YYYY-MM-DD
     setAttributes(event.attributes_preset || []);
     setSegments(event.segments_preset || []);
@@ -109,6 +114,7 @@ export default function AdminEventsPage() {
     try {
         const formData = new FormData();
         formData.append("name", name);
+        if (nameEn) formData.append("name_en", nameEn);
         formData.append("event_date", eventDate);
         formData.append("attributes_preset", JSON.stringify(attributes));
         formData.append("segments_preset", JSON.stringify(segments));
@@ -135,6 +141,17 @@ export default function AdminEventsPage() {
         alert("予期せぬエラーが発生しました: " + e.message);
     } finally {
         setIsSaving(false);
+    }
+  };
+
+  const handleNameBlur = async () => {
+    if (name && !nameEn) {
+        setIsTranslating(true);
+        const result = await translateText(name, 'en');
+        if (result.success && result.data) {
+            setNameEn(result.data);
+        }
+        setIsTranslating(false);
     }
   };
 
@@ -259,13 +276,28 @@ export default function AdminEventsPage() {
             
             <div className="p-6 overflow-y-auto space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 block">イベント名 <span className="text-red-500">*</span></label>
+                <label className="text-sm font-bold text-gray-700 block">イベント名 (日本語) <span className="text-red-500">*</span></label>
                 <input 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={handleNameBlur}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none font-bold"
                   placeholder="例: 第10回 学術大会"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    イベント名 (英語) 
+                    {isTranslating && <span className="text-xs text-primary flex items-center"><Loader2 className="w-3 h-3 mr-1 animate-spin"/> 翻訳中...</span>}
+                </label>
+                <input 
+                  value={nameEn}
+                  onChange={(e) => setNameEn(e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none font-bold bg-gray-50"
+                  placeholder="Ex: The 10th Annual Conference"
+                />
+                <p className="text-xs text-gray-500">※日本語名を入力すると自動で翻訳されます</p>
               </div>
 
               <div className="space-y-2">

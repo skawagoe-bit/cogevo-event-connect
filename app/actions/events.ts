@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 
 const eventSchema = z.object({
   name: z.string().min(1, 'イベント名は必須です'),
+  name_en: z.string().optional().or(z.literal('')), // Added
   event_date: z.string(),
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
@@ -38,6 +39,7 @@ export async function createEvent(formData: FormData) {
 
     const rawData = {
       name: formData.get('name'),
+      name_en: formData.get('name_en'), // Added
       event_date: formData.get('event_date'),
       attributes_preset: formData.get('attributes_preset') 
         ? JSON.parse(formData.get('attributes_preset') as string)
@@ -59,6 +61,7 @@ export async function createEvent(formData: FormData) {
       .from('events')
       .insert({
         name: validated.name,
+        name_en: validated.name_en || null, // Added
         event_date: validated.event_date,
         user_id: user.id,
         attributes_preset: validated.attributes_preset,
@@ -92,6 +95,7 @@ export async function updateEvent(id: string, formData: FormData) {
 
     const rawData = {
       name: formData.get('name'),
+      name_en: formData.get('name_en'), // Added
       event_date: formData.get('event_date'),
       attributes_preset: formData.get('attributes_preset') 
         ? JSON.parse(formData.get('attributes_preset') as string)
@@ -113,6 +117,7 @@ export async function updateEvent(id: string, formData: FormData) {
       .from('events')
       .update({
         name: validated.name,
+        name_en: validated.name_en || null, // Added
         event_date: validated.event_date,
         attributes_preset: validated.attributes_preset,
         segments_preset: validated.segments_preset,
