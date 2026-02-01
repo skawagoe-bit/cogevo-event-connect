@@ -161,6 +161,44 @@ export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
   }
 }
 
+export async function transcribeAudio(formData: FormData, apiKey?: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error('認証が必要です')
+
+    const file = formData.get('audio') as File;
+    if (!file) {
+      return { success: false, error: '音声ファイルがありません' }
+    }
+
+    const keyToUse = apiKey || GEMINI_API_KEY;
+    const client = new GoogleGenerativeAI(keyToUse);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+
+    const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const prompt = "以下の音声を文字起こししてください。商談のメモです。要点をまとめて箇条書きにしてください。";
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Audio,
+          mimeType: file.type || 'audio/webm',
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    return { success: true, text: response.text() };
+
+  } catch (error: any) {
+    console.error('Transcription Error:', error);
+    return { success: false, error: error.message || '文字起こしに失敗しました' }
+  }
+}
+
 export async function translateText(text: string, targetLang: 'en' | 'ja') {
   try {
     const { userId } = await auth()

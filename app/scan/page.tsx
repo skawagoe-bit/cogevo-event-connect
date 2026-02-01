@@ -12,7 +12,7 @@ import { createVisitor } from "@/app/actions/visitors";
 import { getProfile } from "@/app/actions/profile";
 import { useTranslation } from "@/lib/i18n/context";
 import { digitizeCardWithSansan } from "@/app/actions/sansan";
-import { analyzeBusinessCard } from "@/app/actions/ai";
+import { analyzeBusinessCard, transcribeAudio } from "@/app/actions/ai";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -356,6 +356,7 @@ export default function ScanPage() {
             }
 
             // Upload Audio
+            let transcript = "";
             if (audioBlob) {
                 const filename = `audio-${Date.now()}.webm`;
                 const { error } = await supabase.storage
@@ -368,6 +369,21 @@ export default function ScanPage() {
                     .from('visitor-uploads')
                     .getPublicUrl(filename);
                 voiceMemoUrl = publicUrl;
+
+                // Transcribe audio using Gemini
+                try {
+                    const audioFile = new File([audioBlob], filename, { type: 'audio/webm' });
+                    const audioFormData = new FormData();
+                    audioFormData.append('audio', audioFile);
+                    
+                    const apiKey = localStorage.getItem("gemini_api_key") || undefined;
+                    const transcriptResult = await transcribeAudio(audioFormData, apiKey);
+                    if (transcriptResult.success && transcriptResult.text) {
+                        transcript = transcriptResult.text;
+                    }
+                } catch (tError) {
+                    console.error("Transcription failed:", tError);
+                }
             }
 
             const formData = new FormData();
@@ -376,6 +392,7 @@ export default function ScanPage() {
             formData.append("attribute", "その他"); 
             if (badgeImageUrl) formData.append("badge_image_url", badgeImageUrl);
             if (voiceMemoUrl) formData.append("voice_memo_url", voiceMemoUrl);
+            if (transcript) formData.append("memo", transcript);
             formData.append("process_status", "pending_entry");
 
             const result = await createVisitor(formData);
