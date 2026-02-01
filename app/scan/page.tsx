@@ -193,11 +193,6 @@ export default function ScanPage() {
         startCamera();
     }
   };
-    setCapturedImage(null);
-    setIsImageConfirmed(false);
-    setShowBadgeConfirm(false);
-    setAudioBlob(null);
-  };
 
   const confirmImage = () => {
     setIsImageConfirmed(true);
@@ -477,62 +472,6 @@ export default function ScanPage() {
 
       <div className="flex-1 overflow-y-auto pb-24 scrollbar-hide relative">
         
-        {/* Badge Confirmation UI */}
-        {showBadgeConfirm && (
-            <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in">
-                <div className="relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
-                    <img src={capturedImage!} alt="Badge" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
-                    <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-                        <span className="text-white font-bold text-lg drop-shadow-md">{dict.scan.badge_image}</span>
-                    </div>
-                </div>
-
-                <div className="w-full max-w-sm space-y-4">
-                    <Button
-                        onClick={toggleVoiceInput}
-                        variant="outline"
-                        className={cn(
-                            "w-full h-16 text-lg font-bold rounded-xl border-2 transition-all",
-                            isRecording 
-                                ? "bg-red-500/20 border-red-500 text-red-500 animate-pulse" 
-                                : audioBlob 
-                                    ? "bg-green-500/20 border-green-500 text-green-500"
-                                    : "bg-white/10 border-white/30 text-white hover:bg-white/20"
-                        )}
-                    >
-                        {isRecording ? (
-                            <><Mic className="w-6 h-6 mr-2 animate-pulse" /> {dict.scan.recording}</>
-                        ) : audioBlob ? (
-                            <><Check className="w-6 h-6 mr-2" /> {dict.scan.recording_complete}</>
-                        ) : (
-                            <><Mic className="w-6 h-6 mr-2" /> {dict.scan.record_voice_memo}</>
-                        )}
-                    </Button>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                            onClick={retakePhoto}
-                            variant="secondary"
-                            className="h-14 bg-white/10 text-white hover:bg-white/20 border-white/10"
-                        >
-                            <RefreshCcw className="w-5 h-5 mr-2" />
-                            {dict.scan.retake}
-                        </Button>
-                        <Button 
-                            onClick={handleRegister}
-                            className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-900/50"
-                        >
-                            {dict.common.save}
-                        </Button>
-                    </div>
-                    <p className="text-white/50 text-xs text-center mt-4">
-                        {dict.scan.save_later_list}
-                    </p>
-                </div>
-            </div>
-        )}
-
         {/* QR Code Overlay Modal */}
         {showQR && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 animate-in fade-in duration-200" onClick={() => setShowQR(false)}>
