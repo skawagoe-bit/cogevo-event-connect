@@ -191,6 +191,9 @@ export default function ScanPage() {
     setAudioBlob(null);
     setMemoText("");
     
+    // Force reset facingMode to environment when switching modes, just in case
+    setFacingMode('environment');
+
     // Auto-start camera (it will use the current facingMode, which defaults to environment)
     if (!streamRef.current) {
         startCamera();
