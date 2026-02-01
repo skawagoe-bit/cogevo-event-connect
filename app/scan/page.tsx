@@ -165,13 +165,7 @@ export default function ScanPage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
       setCapturedImage(imageUrl);
-      
-      if (isBadgeMode) {
-        setIsImageConfirmed(true);
-        setShowBadgeConfirm(true);
-      } else {
-        setIsImageConfirmed(false);
-      }
+      setIsImageConfirmed(false); // Always standard flow now
 
       if (navigator.vibrate) navigator.vibrate(50);
     }
@@ -207,6 +201,39 @@ export default function ScanPage() {
 
   const confirmImage = () => {
     setIsImageConfirmed(true);
+    if (isBadgeMode) {
+        handleBadgeAnalysis();
+    }
+  };
+
+  const handleBadgeAnalysis = async () => {
+    if (!capturedImage) return;
+
+    setIsAnalyzing(true);
+    try {
+        // Convert base64 to File object
+        const res = await fetch(capturedImage);
+        const blob = await res.blob();
+        const file = new File([blob], "badge.jpg", { type: "image/jpeg" });
+        
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // Analyze Badge Image
+        const apiKey = localStorage.getItem("gemini_api_key") || undefined;
+        const aiResult = await analyzeBusinessCard(formData, apiKey);
+        if (aiResult.success && aiResult.data) {
+            setName(aiResult.data.name || "");
+            setCompany(aiResult.data.company || "");
+            // No alert needed, just fills the form
+        } else {
+             console.warn("Badge analysis failed:", aiResult.error);
+        }
+    } catch (e: any) {
+        console.error(e);
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
   const toggleVoiceInput = useCallback(() => {
@@ -348,117 +375,6 @@ export default function ScanPage() {
   };
 
   const handleRegister = async () => {
-    // Badge Mode Registration
-    if (isBadgeMode) {
-        if (!eventId) {
-            alert("イベントが選択されていません。トップに戻ってイベントを選択してください。");
-            return;
-        }
-
-        try {
-            const supabase = createClient();
-            let badgeImageUrl = "";
-            let voiceMemoUrl = "";
-
-            // Upload Badge Image
-            let name = "";
-            let company = "";
-            
-            if (capturedImage) {
-                const imageBlob = await (await fetch(capturedImage)).blob();
-                const filename = `badge-${Date.now()}.jpg`;
-                const { error } = await supabase.storage
-                    .from('visitor-uploads')
-                    .upload(filename, imageBlob);
-                
-                if (error) throw error;
-                
-                const { data: { publicUrl } } = supabase.storage
-                    .from('visitor-uploads')
-                    .getPublicUrl(filename);
-                badgeImageUrl = publicUrl;
-
-                // Analyze Badge Image
-                try {
-                    const badgeFile = new File([imageBlob], filename, { type: 'image/jpeg' });
-                    const badgeFormData = new FormData();
-                    badgeFormData.append('image', badgeFile);
-                    
-                    const apiKey = localStorage.getItem("gemini_api_key") || undefined;
-                    const aiResult = await analyzeBusinessCard(badgeFormData, apiKey);
-                    if (aiResult.success && aiResult.data) {
-                        name = aiResult.data.name || "";
-                        company = aiResult.data.company || "";
-                    }
-                } catch (aiError) {
-                    console.error("Badge analysis failed:", aiError);
-                }
-            }
-
-            // Upload Audio
-            let transcript = "";
-            if (audioBlob) {
-                const filename = `audio-${Date.now()}.webm`;
-                const { error } = await supabase.storage
-                    .from('visitor-uploads')
-                    .upload(filename, audioBlob);
-                
-                if (error) throw error;
-                
-                const { data: { publicUrl } } = supabase.storage
-                    .from('visitor-uploads')
-                    .getPublicUrl(filename);
-                voiceMemoUrl = publicUrl;
-
-                // Transcribe audio using Gemini
-                try {
-                    const audioFile = new File([audioBlob], filename, { type: 'audio/webm' });
-                    const audioFormData = new FormData();
-                    audioFormData.append('audio', audioFile);
-                    
-                    const apiKey = localStorage.getItem("gemini_api_key") || undefined;
-                    const transcriptResult = await transcribeAudio(audioFormData, apiKey);
-                    if (transcriptResult.success && transcriptResult.text) {
-                        transcript = transcriptResult.text;
-                    }
-                } catch (tError) {
-                    console.error("Transcription failed:", tError);
-                }
-            }
-
-            const formData = new FormData();
-            formData.append("event_id", eventId);
-            // Default attribute for pending entry
-            formData.append("attribute", "その他"); 
-            if (badgeImageUrl) formData.append("badge_image_url", badgeImageUrl);
-            if (voiceMemoUrl) formData.append("voice_memo_url", voiceMemoUrl);
-            if (transcript) formData.append("memo", transcript);
-            if (name) formData.append("name", name);
-            if (company) formData.append("company", company);
-            formData.append("process_status", "pending_entry");
-
-            const result = await createVisitor(formData);
-            
-            if (result.success) {
-                alert(dict.scan.saved_badge);
-                // Reset state
-                setCapturedImage(null);
-                setAudioBlob(null);
-                setShowBadgeConfirm(false);
-                setIsBadgeMode(false); // Optionally stay in badge mode? For now reset.
-                router.push("/list"); // Or stay on scan?
-            } else {
-                console.error(result.error);
-                alert("登録エラー: " + result.error);
-            }
-
-        } catch (err: any) {
-            console.error("Badge registration error:", err);
-            alert("登録処理中にエラーが発生しました: " + err.message);
-        }
-        return;
-    }
-
     if (!selectedAttribute) {
       alert(dict.scan.select_attribute);
       return;
@@ -495,8 +411,19 @@ export default function ScanPage() {
       if (email) formData.append("email", email);
       formData.append("attribute", selectedAttribute);
       if (selectedSegment) formData.append("segment", selectedSegment);
-      if (imageUrl) formData.append("image_url", imageUrl);
+      
+      if (imageUrl) {
+          if (isBadgeMode) {
+              formData.append("badge_image_url", imageUrl);
+          } else {
+              formData.append("image_url", imageUrl);
+          }
+      }
+      
       if (memoText) formData.append("memo", memoText);
+      // Process status is 'completed' by default (from updated schema/action default), 
+      // but we can be explicit if needed. Since we removed pending_entry flow, 
+      // we assume this is a full registration.
 
       console.log("Submitting visitor data:", {
         event_id: eventId,
@@ -506,6 +433,7 @@ export default function ScanPage() {
         attribute: selectedAttribute,
         segment: selectedSegment,
         roles: selectedRoles,
+        isBadgeMode,
         hasImage: !!imageUrl,
         memo: memoText
       });
