@@ -1,7 +1,5 @@
 'use server';
 
-import axios from 'axios';
-
 // Note: In a real production environment, never hardcode API keys.
 // Use environment variables like process.env.SANSAN_API_KEY
 // However, per user request, we are using the provided key.
@@ -9,7 +7,8 @@ import axios from 'axios';
 const SANSAN_API_KEY = process.env.SANSAN_API_KEY || '9111e0e2c4b64aeba0cdb3d566555a53';
 
 // Standard Sansan Open API endpoint for card registration usually follows this pattern.
-// If v3.4 doesn't work, we might try v3.0 or similar.
+// Based on typical "Sansan Open API" specs:
+// https://api.sansan.com/v3.0/bizCards
 const SANSAN_API_URL = 'https://api.sansan.com/v3.0/bizCards'; 
 
 export async function digitizeCardWithSansan(formData: FormData) {
@@ -19,54 +18,55 @@ export async function digitizeCardWithSansan(formData: FormData) {
     try {
         console.log(`[Sansan API] Uploading ${imageFile.name} with key ${SANSAN_API_KEY.slice(0,5)}...`);
 
-        // Convert File to Buffer for axios
-        const buffer = Buffer.from(await imageFile.arrayBuffer());
+        // Use native fetch to properly handle multipart/form-data boundary generation automatically
+        const uploadData = new FormData();
+        uploadData.append('file', imageFile);
+
+        // Note: For Sansan API specifically, sometimes they expect 'file' or just raw binary.
+        // If v3.0 bizCards endpoint expects multipart, this is correct.
         
-        // Sansan Open API usually expects endpoints like:
-        // POST /bizCards to register
-        // But often standard API is for *retrieving*.
-        // "Eight" has simpler API. "Sansan" (Corporate) is stricter.
-        
-        // Attempting to hit the endpoint. 
-        // Note: Without exact docs, 404 is possible if URL is wrong.
-        // We will catch errors and return them to help debugging.
-        const response = await axios.post(SANSAN_API_URL, buffer, {
+        const response = await fetch(SANSAN_API_URL, {
+            method: 'POST',
             headers: {
                 'X-Sansan-Api-Key': SANSAN_API_KEY,
-                'Content-Type': 'multipart/form-data' // Or often just the file in body? usually multipart.
-            }
+                // Do NOT set Content-Type here when using FormData with fetch; 
+                // the browser/runtime sets it with the boundary automatically.
+            },
+            body: uploadData,
         });
 
-        console.log("[Sansan API] Response:", response.data);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Sansan API] Failed:', response.status, errorText);
+            throw new Error(`Request failed with status code ${response.status}: ${errorText}`);
+        }
 
-        // If success, response usually contains ID.
-        // It rarely returns "name/company" immediately for Sansan.
-        // It returns an ID like "bizCardId".
-        
-        // Since we can't get immediate text, we should tell the user 
-        // "Uploaded successfully. Digitization in progress."
-        // And NOT return fake data.
-        
+        const data = await response.json();
+        console.log("[Sansan API] Response:", data);
+
         return { 
             success: true, 
             data: {
                 // If the API *does* return something, pass it.
                 // Otherwise indicate pending status.
-                name: response.data.name || "", // Unlikely to be here instantly
-                company: response.data.companyName || "",
-                email: response.data.email || "",
+                name: data.name || "", 
+                company: data.companyName || "",
+                email: data.email || "",
                 status: 'pending' 
             }
         };
 
     } catch (error: any) {
-        console.error('Sansan API Real Error:', error.response?.data || error.message);
+        console.error('Sansan API Real Error:', error.message);
         
-        // Fallback for demo if the real API fails (e.g. 404 on endpoint)
-        // But we must NOT show fake "Sansan Taro" anymore as user complained.
+        // Return a mock success if the real API fails (to allow demo to continue)
+        // BUT we should be careful. 
+        // If the user REALLY wants to use their key, we should show the error.
+        // However, for "demo" stability, maybe fallback?
+        // Let's return the error so they know their key/endpoint might be wrong.
         return { 
             success: false, 
-            error: `Sansan連携エラー: ${error.response?.status} ${error.message}` 
+            error: `Sansan連携エラー: ${error.message}` 
         };
     }
 }
