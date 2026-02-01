@@ -187,11 +187,6 @@ export default function ScanPage() {
     
     // Force reset facingMode to environment when switching modes, just in case
     setFacingMode('environment');
-
-    // Auto-start camera (it will use the current facingMode, which defaults to environment)
-    if (!streamRef.current) {
-        startCamera();
-    }
   };
 
   const confirmImage = () => {
@@ -666,10 +661,8 @@ export default function ScanPage() {
            <Button  
              variant="secondary" 
              onClick={toggleVoiceInput}
-             disabled={isBadgeMode} // Disable voice button in navbar when in badge mode (handled in confirm screen)
              className={cn(
                "flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 border shadow-sm transition-all",
-               isBadgeMode ? "opacity-30 grayscale cursor-not-allowed" : "",
                isListening
                  ? "bg-red-50 border-red-200 animate-pulse" 
                  : "bg-blue-50 border-blue-100 hover:bg-blue-100"
