@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Save, ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProfile, updateProfile } from "@/app/actions/profile";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { dict } = useTranslation();
   const [sansanUrl, setSansanUrl] = useState("");
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("");
@@ -37,10 +39,10 @@ export default function ProfilePage() {
     const result = await updateProfile(formData);
     
     if (result.success) {
-      alert("保存しました");
+      alert(dict.profile.saved);
       router.back();
     } else {
-      alert("保存に失敗しました: " + result.error);
+      alert(`${dict.profile.save_failed}: ${result.error}`);
     }
     setSaving(false);
   };
@@ -51,7 +53,7 @@ export default function ProfilePage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="w-5 h-5 text-gray-500" />
         </Button>
-        <h1 className="text-lg font-bold text-gray-800">プロフィール設定</h1>
+        <h1 className="text-lg font-bold text-gray-800">{dict.profile.title}</h1>
       </header>
 
       <div className="flex-1 p-6 max-w-md mx-auto w-full">
@@ -63,29 +65,29 @@ export default function ProfilePage() {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">氏名</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">{dict.profile.name}</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="山田 太郎"
+                  placeholder={dict.profile.name_placeholder}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">所属（部署・役職など）</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">{dict.profile.department}</label>
                 <input
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="営業部 第1課"
+                  placeholder={dict.profile.department_placeholder}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Sansanオンライン名刺URL</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">{dict.profile.sansan_url}</label>
                 <input
                   type="url"
                   value={sansanUrl}
@@ -94,8 +96,8 @@ export default function ProfilePage() {
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
                 />
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                  Sansanアプリで「オンライン名刺」を開き、URLをコピーして貼り付けてください。<br/>
-                  ここで設定したURLが、スキャン画面の「名刺交換QR」として表示されます。
+                  {dict.profile.sansan_desc_1}<br/>
+                  {dict.profile.sansan_desc_2}
                 </p>
               </div>
 
@@ -115,7 +117,7 @@ export default function ProfilePage() {
               disabled={saving}
             >
               {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-              保存する
+              {dict.common.save}
             </Button>
           </div>
         )}

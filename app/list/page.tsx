@@ -10,11 +10,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import type { Database } from "@/lib/supabase/types";
 import { getVisitors } from "@/app/actions/visitors";
+import { useTranslation } from "@/lib/i18n/context";
 
 type Visitor = Database['public']['Tables']['visitors']['Row'];
 
 export default function ListPage() {
   const router = useRouter();
+  const { dict, t } = useTranslation();
   const { eventId, attributes } = useSettings();
   const [activeTab, setActiveTab] = useState<'unsent' | 'sent'>('unsent');
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function ListPage() {
         <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length})</h1>
+        <h1 className="text-lg font-bold text-gray-800">{dict.list.todays_registration} ({visitors.length})</h1>
         <button 
            onClick={() => router.push('/dashboard')}
            className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"
@@ -126,7 +128,7 @@ export default function ListPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
                     type="text" 
-                    placeholder="名前や会社名で検索..." 
+                    placeholder={dict.list.search_placeholder}
                     className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -151,7 +153,7 @@ export default function ListPage() {
                             : "bg-white text-gray-600 border-gray-200"
                     )}
                 >
-                    すべて
+                    {dict.list.filter_all}
                 </button>
                 {attributes.map(attr => (
                     <button
@@ -164,7 +166,7 @@ export default function ListPage() {
                                 : "bg-white text-gray-600 border-gray-200"
                         )}
                     >
-                        {attr}
+                        {t(attr)}
                     </button>
                 ))}
             </div>
@@ -181,7 +183,7 @@ export default function ListPage() {
               : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
           )}
         >
-          <span>未送信</span>
+          <span>{dict.list.tab_unsent}</span>
           <span className={cn(
               "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
               activeTab === 'unsent' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
@@ -196,7 +198,7 @@ export default function ListPage() {
               : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
           )}
         >
-          <span>送信済</span>
+          <span>{dict.list.tab_sent}</span>
           <span className={cn(
               "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
               activeTab === 'sent' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
@@ -212,21 +214,21 @@ export default function ListPage() {
         ) : filteredVisitors.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm">
             <span className="mb-2 block text-2xl">🔍</span>
-            条件に一致するデータはありません
+            {dict.list.no_results}
           </div>
         ) : (
           filteredVisitors.map(visitor => (
             <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-800 text-lg">{visitor.name || '名称未設定'}</span>
+                  <span className="font-bold text-gray-800 text-lg">{visitor.name || dict.list.name_not_set}</span>
                   <span className={cn(
                     "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
                     visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
                     visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
                     "bg-gray-100 text-gray-600"
                   )}>
-                    {visitor.attribute || '未設定'}
+                    {t(visitor.attribute || dict.list.not_set)}
                   </span>
                 </div>
                 <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
@@ -234,11 +236,11 @@ export default function ListPage() {
               <div className="flex flex-col items-end gap-1">
                  {visitor.is_sent ? (
                    <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                     <Check className="w-3 h-3" /> 送信済
+                     <Check className="w-3 h-3" /> {dict.list.tab_sent}
                    </span>
                  ) : (
                    <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                     <Clock className="w-3 h-3" /> 未送信
+                     <Clock className="w-3 h-3" /> {dict.list.tab_unsent}
                    </span>
                  )}
               </div>
@@ -255,7 +257,7 @@ export default function ListPage() {
              disabled={unsentCount === 0}
           >
             <Send className="w-5 h-5" />
-            一斉送信を確認する
+            {dict.list.check_bulk_send}
           </Button>
         </div>
       )}
