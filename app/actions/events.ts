@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
+import { revalidatePath } from 'next/cache'
 
 const eventSchema = z.object({
   name: z.string().min(1, 'イベント名は必須です'),
@@ -70,6 +71,8 @@ export async function createEvent(formData: FormData) {
 
     if (error) throw error
 
+    revalidatePath('/preset')
+    revalidatePath('/admin/events')
     return { success: true, data }
   } catch (error: any) {
     console.error('Create event error:', error)
@@ -122,6 +125,8 @@ export async function updateEvent(id: string, formData: FormData) {
 
     if (error) throw error
 
+    revalidatePath('/preset')
+    revalidatePath('/admin/events')
     return { success: true, data }
   } catch (error: any) {
     console.error('Update event error:', error)
@@ -146,6 +151,8 @@ export async function deleteEvent(id: string) {
 
     if (error) throw error
 
+    revalidatePath('/preset')
+    revalidatePath('/admin/events')
     return { success: true }
   } catch (error: any) {
     console.error('Delete event error:', error)
@@ -167,9 +174,6 @@ export async function getEventsByMonth(yearMonth: string) {
     const [year, month] = yearMonth.split('-').map(Number);
     
     // Calculate start and end of the month
-    // Note: Creating date in local time then converting to ISO might shift the day if not careful.
-    // However, for simple date string comparison (YYYY-MM-DD), constructing strings is safer.
-    
     const startDate = `${yearMonth}-01`;
     // Last day of month calculation
     const lastDay = new Date(year, month, 0).getDate();
