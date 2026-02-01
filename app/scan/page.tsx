@@ -233,7 +233,9 @@ export default function ScanPage() {
         if (aiResult.success || sansanResult.success) {
             alert("名刺を読み取りました");
         } else {
-            alert("読み取りに失敗しました");
+            // alert("読み取りに失敗しました");
+            // Suppress error alert if at least one method succeeded or just failed silently
+            console.error("Scanning failed", aiResult.error, sansanResult.error);
         }
     } catch (e: any) {
         console.error(e);
