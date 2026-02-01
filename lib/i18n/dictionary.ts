@@ -98,6 +98,16 @@ export const dictionary = {
       search_placeholder: '名前や会社名で検索...',
       send_mail: 'メール作成',
       no_visitors: '訪問者はまだいません',
+    },
+    menu: {
+      dashboard: 'ダッシュボード',
+      scan: 'スキャン画面',
+      list: '来場者リスト',
+      gift: 'ギフト管理',
+      preset: 'イベント選択',
+      profile: 'プロフィール設定',
+      logout: 'ログアウト',
+      title: 'メニュー',
     }
   },
   en: {
@@ -199,6 +209,16 @@ export const dictionary = {
       search_placeholder: 'Search by name or company...',
       send_mail: 'Compose Mail',
       no_visitors: 'No visitors yet',
+    },
+    menu: {
+      dashboard: 'Dashboard',
+      scan: 'Scan Card',
+      list: 'Visitor List',
+      gift: 'Gift Management',
+      preset: 'Select Event',
+      profile: 'Profile',
+      logout: 'Logout',
+      title: 'Menu',
     }
   }
 };

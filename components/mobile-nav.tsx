@@ -22,10 +22,13 @@ interface MobileNavProps {
   onClose: () => void
 }
 
+import { useTranslation } from '@/lib/i18n/context'
+
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { signOut } = useClerk()
+  const { dict } = useTranslation() // Added
   
   // マウント状態（DOMに存在するかどうか）
   const [mounted, setMounted] = useState(false)
@@ -74,12 +77,12 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   if (!mounted && !isOpen) return null
 
   const navItems = [
-    { href: '/dashboard', label: 'ダッシュボード', icon: BarChart3 },
-    { href: '/scan', label: 'スキャン画面', icon: QrCode },
-    { href: '/list', label: '来場者リスト', icon: List },
-    { href: '/gift', label: 'ギフト管理', icon: Gift },
-    { href: '/preset', label: 'イベント選択', icon: Settings },
-    { href: '/profile', label: 'プロフィール設定', icon: User },
+    { href: '/dashboard', label: dict.menu.dashboard, icon: BarChart3 },
+    { href: '/scan', label: dict.menu.scan, icon: QrCode },
+    { href: '/list', label: dict.menu.list, icon: List },
+    { href: '/gift', label: dict.menu.gift, icon: Gift },
+    { href: '/preset', label: dict.menu.preset, icon: Settings },
+    { href: '/profile', label: dict.menu.profile, icon: User },
   ]
 
   return (
@@ -107,7 +110,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         )}
       >
         <div className="p-4 pt-safe border-b flex justify-between items-center bg-primary/5">
-          <h2 className="font-bold text-lg text-primary">メニュー</h2>
+          <h2 className="font-bold text-lg text-primary">{dict.menu.title}</h2>
           <button 
             onClick={onClose}
             className="p-2 hover:bg-black/5 rounded-full transition-colors"
@@ -143,7 +146,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             className="flex items-center gap-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
           >
             <LogOut size={20} />
-            ログアウト
+            {dict.menu.logout}
           </button>
         </div>
       </div>
