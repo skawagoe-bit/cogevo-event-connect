@@ -91,7 +91,7 @@ export default function ScanPage() {
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.message || "カメラを起動できませんでした。ブラウザの許可設定を確認してください。");
+      setErrorMessage(`[${err.name}] ${err.message}` || "カメラ起動エラー");
     }
   }, [facingMode]);
 
@@ -339,10 +339,18 @@ export default function ScanPage() {
              <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center">
                <Camera className="w-12 h-12 mb-3 opacity-50" />
                <span className="text-sm font-medium tracking-wide mb-2">
-                 {hasCameraPermission === false ? "カメラへのアクセスができません" : "カメラを起動中..."}
+                 {hasCameraPermission === false ? "カメラエラー" : "カメラを起動中..."}
                </span>
                {errorMessage && (
-                 <span className="text-xs text-red-400 mb-4 block max-w-[200px] break-words">{errorMessage}</span>
+                 <div className="bg-red-500/10 border border-red-500/50 rounded p-2 max-w-[250px]">
+                    <span className="text-xs text-red-400 block break-words font-mono text-left">
+                        {errorMessage}
+                    </span>
+                    <p className="text-[10px] text-gray-400 mt-1 text-left">
+                        ※ブラウザの設定でカメラを許可してください。<br/>
+                        ※LINE等のアプリ内ブラウザでは動作しない場合があります。
+                    </p>
+                 </div>
                )}
                {hasCameraPermission === false && (
                  <Button onClick={() => startCamera()} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
