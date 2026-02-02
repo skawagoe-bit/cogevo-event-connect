@@ -9,6 +9,7 @@ import { useSettings } from "@/app/providers";
 import QRCode from "react-qr-code";
 import { createClient } from "@/lib/supabase/client";
 import { createVisitor } from "@/app/actions/visitors";
+import { scanBusinessCard } from "@/app/actions/sansan";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -259,26 +260,36 @@ export default function ScanPage() {
     }
   }, [isListening]);
 
-  const handleSansanMock = async () => {
+  const handleAnalyzeCard = async () => {
+    if (!capturedImage) return;
+    
     setIsAnalyzing(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    // Mock Data - In a real app this would come from Sansan API
-    // Currently using fixed mock data as per MVP scope
-    setName("山田 太郎");
-    setCompany("Sansan株式会社");
-    setEmail("taro.yamada@example.com");
-    
-    setIsAnalyzing(false);
-    
-    // スクロールして入力欄を見せる
-    setTimeout(() => {
-        const formElement = document.getElementById('visitor-form');
-        if (formElement) {
-            formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setCameraErrorDetail(null);
+
+    try {
+        const result = await scanBusinessCard(capturedImage);
+        
+        if (result.success && result.data) {
+            setName(result.data.name || "");
+            setCompany(result.data.companyName || "");
+            setEmail(result.data.email || "");
+            
+            // スクロールして入力欄を見せる
+            setTimeout(() => {
+                const formElement = document.getElementById('visitor-form');
+                if (formElement) {
+                    formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        } else {
+            throw new Error(result.error || "データ化に失敗しました");
         }
-    }, 100);
+    } catch (e: any) {
+        console.error(e);
+        alert(`解析エラー: ${e.message}`);
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -351,7 +362,7 @@ export default function ScanPage() {
          <div className="flex flex-col">
             <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
-                <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v2.2</span>
+                <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v2.3</span>
             </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
@@ -509,7 +520,7 @@ export default function ScanPage() {
            {capturedImage && (
              <div className="absolute bottom-4 right-4 z-20">
                <Button 
-                 onClick={handleSansanMock} 
+                 onClick={handleAnalyzeCard} 
                  disabled={isAnalyzing}
                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-white/20"
                >
