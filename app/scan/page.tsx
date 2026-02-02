@@ -165,16 +165,29 @@ export default function ScanPage() {
             return;
         }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        // Create canvas with limited size to prevent memory crash on iOS
+        const MAX_WIDTH = 1024;
+        let drawWidth = width;
+        let drawHeight = height;
+        
+        // Resize if too large
+        if (drawWidth > MAX_WIDTH) {
+            const ratio = MAX_WIDTH / drawWidth;
+            drawWidth = MAX_WIDTH;
+            drawHeight = drawHeight * ratio;
+        }
 
-        const ctx = canvas.getContext("2d");
+        const canvas = document.createElement("canvas");
+        canvas.width = drawWidth;
+        canvas.height = drawHeight;
+
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         
         if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0);
+          ctx.drawImage(videoRef.current, 0, 0, drawWidth, drawHeight);
           try {
-            const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+            // Lower quality to 0.6 to save memory
+            const imageUrl = canvas.toDataURL("image/jpeg", 0.6);
             setCapturedImage(imageUrl);
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
                 try { navigator.vibrate(50); } catch (e) { /* ignore vibration error */ }
@@ -328,7 +341,10 @@ export default function ScanPage() {
       {/* Header */}
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v2.0</span>
+            </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
          <Button 
