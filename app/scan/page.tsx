@@ -38,18 +38,33 @@ export default function ScanPage() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Stop camera function
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
   // Initialize camera
   const startCamera = useCallback(async () => {
     try {
       setErrorMessage(null);
       
+      // Stop any existing streams first
+      stopCamera();
+      
+      // Short delay to ensure hardware is released
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Check API support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("お使いのブラウザはカメラ機能をサポートしていないか、セキュリティ制限により使用できません（HTTPS接続を確認してください）。");
-      }
-
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
       }
 
       let stream: MediaStream;
@@ -97,23 +112,31 @@ export default function ScanPage() {
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(`[${err.name}] ${err.message}` || "カメラ起動エラー");
+      
+      let msg = err.message || "カメラ起動エラー";
+      if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          msg = "カメラが他のアプリやタブで使用されています。それらを閉じてから「再試行」を押してください。";
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          msg = "カメラのアクセスが拒否されました。ブラウザの設定で許可してください。";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          msg = "カメラが見つかりません。";
+      }
+      
+      setErrorMessage(`[${err.name}] ${msg}`);
     }
-  }, [facingMode]);
+  }, [facingMode, stopCamera]);
 
   useEffect(() => {
     if (!capturedImage) {
       startCamera();
     }
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
-  }, [startCamera, capturedImage]);
+  }, [startCamera, capturedImage, stopCamera]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
@@ -298,7 +321,10 @@ export default function ScanPage() {
       {/* Header */}
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
+                <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.6</span>
+            </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
          <Button 
