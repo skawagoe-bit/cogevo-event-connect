@@ -38,38 +38,70 @@ export default function ScanPage() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Stop camera function
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
   // Initialize camera
   const startCamera = useCallback(async () => {
     try {
       setErrorMessage(null);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+      
+      // Stop any existing streams first
+      stopCamera();
+      
+      // Short delay to ensure hardware is released
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Check API support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("お使いのブラウザはカメラ機能をサポートしていないか、セキュリティ制限により使用できません（HTTPS接続を確認してください）。");
       }
 
       let stream: MediaStream;
       try {
-        // Try to get exact environment camera first
+        // Try to get environment camera with ideal resolution
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
+            facingMode: facingMode === 'user' ? 'user' : 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             audio: false
           }
         });
       } catch (err) {
-        console.log("Exact facing mode failed, falling back to ideal/default");
-        // Fallback to ideal or just string
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: facingMode === 'user' ? 'user' : 'environment',
-            audio: false
-          }
-        });
+        console.log("Ideal config failed, falling back to basic config", err);
+        try {
+            // Fallback to basic constraint
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { 
+                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                audio: false
+              }
+            });
+        } catch (err2) {
+            console.log("Environment camera failed, trying any video source", err2);
+            // Fallback to any camera
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+        }
       }
       
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // 明示的に再生を開始（iOS対策）
+        // iOS Safari対策: playsInline属性はJSXですでに設定されているが、念のため
+        videoRef.current.setAttribute('playsinline', 'true'); 
         try {
           await videoRef.current.play();
         } catch (e) {
@@ -80,41 +112,76 @@ export default function ScanPage() {
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.message || "Unknown error");
+      
+      let msg = err.message || "カメラ起動エラー";
+      if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          msg = "カメラが他のアプリやタブで使用されています。それらを閉じてから「再試行」を押してください。";
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          msg = "カメラのアクセスが拒否されました。ブラウザの設定で許可してください。";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          msg = "カメラが見つかりません。";
+      }
+      
+      setErrorMessage(`[${err.name}] ${msg}`);
     }
-  }, [facingMode]);
+  }, [facingMode, stopCamera]);
 
   useEffect(() => {
     if (!capturedImage) {
       startCamera();
     }
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
-  }, [startCamera, capturedImage]);
+  }, [startCamera, capturedImage, stopCamera]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current) return;
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
-      setCapturedImage(imageUrl);
-      if (navigator.vibrate) navigator.vibrate(50);
+    try {
+        if (!videoRef.current) {
+            alert("エラー(E-01): カメラシステムが初期化されていません");
+            return;
+        }
+        
+        // カメラの状態チェック
+        if (!streamRef.current || !streamRef.current.active) {
+            alert("エラー(E-02): カメラが起動していません。画面上の「再試行」ボタンを押すか、ブラウザをリロードしてください。");
+            return;
+        }
+
+        if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+            alert("エラー(E-03): カメラの映像準備中です。少々お待ちください。");
+            return;
+        }
+        
+        const canvas = document.createElement("canvas");
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        
+        if (canvas.width === 0 || canvas.height === 0) {
+            alert("エラー(E-04): カメラの映像サイズが取得できませんでした。");
+            return;
+        }
+
+        const ctx = canvas.getContext("2d");
+        
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0);
+          const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setCapturedImage(imageUrl);
+          if (navigator.vibrate) navigator.vibrate(50);
+        } else {
+            alert("エラー(E-05): 画像処理コンテキストの取得に失敗しました。");
+        }
+    } catch (e: any) {
+        console.error(e);
+        alert(`システムエラー(E-99): ${e.message}`);
     }
   }, []);
 
@@ -328,10 +395,18 @@ export default function ScanPage() {
              <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center">
                <Camera className="w-12 h-12 mb-3 opacity-50" />
                <span className="text-sm font-medium tracking-wide mb-2">
-                 {hasCameraPermission === false ? "カメラへのアクセスができません" : "カメラを起動中..."}
+                 {hasCameraPermission === false ? "カメラエラー" : "カメラを起動中..."}
                </span>
                {errorMessage && (
-                 <span className="text-xs text-red-400 mb-4 block max-w-[200px] break-words">{errorMessage}</span>
+                 <div className="bg-red-500/10 border border-red-500/50 rounded p-2 max-w-[250px]">
+                    <span className="text-xs text-red-400 block break-words font-mono text-left">
+                        {errorMessage}
+                    </span>
+                    <p className="text-[10px] text-gray-400 mt-1 text-left">
+                        ※ブラウザの設定でカメラを許可してください。<br/>
+                        ※LINE等のアプリ内ブラウザでは動作しない場合があります。
+                    </p>
+                 </div>
                )}
                {hasCameraPermission === false && (
                  <Button onClick={() => startCamera()} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
@@ -411,7 +486,11 @@ export default function ScanPage() {
              <Camera className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">名刺</span>
            </Button>
-           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
+           <Button 
+             variant="secondary" 
+             onClick={() => alert("バッジ撮影モードは開発中です。名刺モードをご利用ください。")}
+             className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
+           >
              <ImageIcon className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">バッジ</span>
            </Button>

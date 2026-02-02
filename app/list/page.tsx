@@ -24,6 +24,8 @@ export default function ListPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
 
   // Initial data fetch
   useEffect(() => {
@@ -32,7 +34,15 @@ export default function ListPage() {
       const result = await getVisitors(CURRENT_EVENT_ID);
       
       if (result.success) {
-        setVisitors(result.data as Visitor[] || []);
+        const fetchedVisitors = result.data as Visitor[] || [];
+        setVisitors(fetchedVisitors);
+        
+        // Initialize selection with all unsent visitors
+        if (!isSelectionInitialized) {
+          const unsentIds = fetchedVisitors.filter(v => !v.is_sent).map(v => v.id);
+          setSelectedIds(new Set(unsentIds));
+          setIsSelectionInitialized(true);
+        }
       } else {
         console.error('Error fetching visitors:', result.error);
       }
@@ -40,7 +50,7 @@ export default function ListPage() {
     };
 
     fetchVisitors();
-  }, []);
+  }, [isSelectionInitialized]);
 
   // Realtime subscription
   useRealtimeSubscription<Visitor>(
@@ -51,14 +61,24 @@ export default function ListPage() {
     (payload) => {
       if (payload.eventType === 'INSERT') {
         setVisitors((prev) => [payload.new, ...prev]);
+        // 新規追加された未送信ユーザーは自動選択
+        if (!payload.new.is_sent) {
+            setSelectedIds(prev => new Set(prev).add(payload.new.id));
+        }
       } else if (payload.eventType === 'UPDATE') {
         setVisitors((prev) => 
           prev.map((v) => (v.id === payload.new.id ? payload.new : v))
         );
+        // 送信済になったら選択から外すなどのロジックが必要ならここ
       } else if (payload.eventType === 'DELETE') {
         setVisitors((prev) => 
           prev.filter((v) => v.id !== payload.old.id)
         );
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.delete(payload.old.id);
+            return next;
+        });
       }
     }
   );
@@ -87,13 +107,40 @@ export default function ListPage() {
   const unsentCount = visitors.filter(v => !v.is_sent).length;
   const sentCount = visitors.filter(v => v.is_sent).length;
 
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    const currentViewIds = filteredVisitors.map(v => v.id);
+    const allSelected = currentViewIds.every(id => selectedIds.has(id));
+    
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        currentViewIds.forEach(id => next.delete(id));
+      } else {
+        currentViewIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
       <header className="bg-white border-b p-4 flex items-center shadow-sm sticky top-0 z-10 shrink-0">
         <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length})</h1>
+        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length}名)</h1>
         <button 
            onClick={() => router.push('/dashboard')}
            className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"
@@ -196,6 +243,26 @@ export default function ListPage() {
         </button>
       </div>
 
+      {activeTab === 'unsent' && filteredVisitors.length > 0 && (
+        <div className="px-4 py-2 flex items-center justify-between text-sm text-gray-500 shrink-0">
+          <button 
+            onClick={toggleAll}
+            className="flex items-center gap-2 hover:text-gray-800 transition-colors"
+          >
+            <div className={cn(
+              "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors",
+              filteredVisitors.every(v => selectedIds.has(v.id))
+                ? "bg-primary border-primary text-white" 
+                : "border-gray-400 bg-white"
+            )}>
+              {filteredVisitors.every(v => selectedIds.has(v.id)) && <Check className="w-4 h-4" />}
+            </div>
+            <span>すべて選択 / 解除</span>
+          </button>
+          <span>選択中: <span className="font-bold text-primary">{selectedIds.size}</span> 名</span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3">
         {isLoading ? (
           <div className="flex justify-center items-center h-48">
@@ -208,31 +275,57 @@ export default function ListPage() {
           </div>
         ) : (
           filteredVisitors.map(visitor => (
-            <div key={visitor.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-800 text-lg">{visitor.name || '名称未設定'}</span>
-                  <span className={cn(
-                    "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
-                    visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
-                    visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
-                    "bg-gray-100 text-gray-600"
+            <div 
+              key={visitor.id} 
+              className={cn(
+                "bg-white p-4 rounded-xl shadow-sm border flex items-center gap-3 group transition-all duration-200 cursor-pointer select-none relative overflow-hidden",
+                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/40" : "border-gray-100",
+                "active:scale-[0.98]"
+              )}
+              onClick={() => activeTab === 'unsent' && toggleSelection(visitor.id)}
+            >
+              {/* Checkbox Area - Fixed width */}
+              {activeTab === 'unsent' && (
+                <div className="shrink-0 flex items-center justify-center mr-2 min-w-[32px] h-[32px]">
+                   <div className={cn(
+                    "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 bg-white",
+                    selectedIds.has(visitor.id) 
+                      ? "bg-primary border-primary text-white shadow-sm scale-110" 
+                      : "border-gray-300 group-hover:border-primary/50"
                   )}>
-                    {visitor.attribute || '未設定'}
-                  </span>
+                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4 stroke-[4]" />}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500 font-medium">{visitor.company || ''}</div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                 {visitor.is_sent ? (
-                   <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                     <Check className="w-3 h-3" /> 送信済
-                   </span>
-                 ) : (
-                   <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                     <Clock className="w-3 h-3" /> 未送信
-                   </span>
-                 )}
+              )}
+              
+              {/* Content Area */}
+              <div className="flex-1 min-w-0 flex justify-between items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-gray-800 text-lg truncate">{visitor.name || '名称未設定'}</span>
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0",
+                      visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
+                      visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
+                      "bg-gray-100 text-gray-600"
+                    )}>
+                      {visitor.attribute || '未設定'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 font-medium truncate">{visitor.company || ''}</div>
+                </div>
+                
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                   {visitor.is_sent ? (
+                     <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                       <Check className="w-3 h-3" /> 送信済
+                     </span>
+                   ) : (
+                     <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
+                       <Clock className="w-3 h-3" /> 未送信
+                     </span>
+                   )}
+                </div>
               </div>
             </div>
           ))
@@ -242,12 +335,24 @@ export default function ListPage() {
       {activeTab === 'unsent' && (
         <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-20 safe-area-bottom">
           <Button 
-             className="w-full text-lg font-bold bg-accent hover:bg-accent/90 h-14 shadow-lg flex items-center justify-center gap-2"
-             onClick={() => router.push("/send")}
-             disabled={unsentCount === 0}
+             className="w-full text-lg font-bold bg-accent hover:bg-accent/90 h-14 shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+             onClick={() => {
+                sessionStorage.setItem('send_target_ids', JSON.stringify(Array.from(selectedIds)));
+                router.push("/send");
+             }}
+             disabled={selectedIds.size === 0}
           >
-            <Send className="w-5 h-5" />
-            一斉送信を確認する
+            {selectedIds.size > 0 ? (
+                <>
+                    <Send className="w-5 h-5" />
+                    選択した {selectedIds.size} 名へ一斉送信する
+                </>
+            ) : (
+                <>
+                    <X className="w-5 h-5" />
+                    送信対象を選択してください
+                </>
+            )}
           </Button>
         </div>
       )}
