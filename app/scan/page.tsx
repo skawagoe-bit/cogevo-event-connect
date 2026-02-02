@@ -42,6 +42,12 @@ export default function ScanPage() {
   const startCamera = useCallback(async () => {
     try {
       setErrorMessage(null);
+      
+      // Check API support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("お使いのブラウザはカメラ機能をサポートしていないか、セキュリティ制限により使用できません（HTTPS接続を確認してください）。");
+      }
+
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -114,11 +120,31 @@ export default function ScanPage() {
   };
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current) {
+        alert("カメラシステムが初期化されていません");
+        return;
+    }
+    
+    // カメラの状態チェック
+    if (!streamRef.current || !streamRef.current.active) {
+        alert("カメラが起動していません。画面上の「再試行」ボタンを押すか、ブラウザをリロードしてください。");
+        return;
+    }
+
+    if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+        alert("カメラの映像準備中です。少々お待ちください。");
+        return;
+    }
     
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
+    
+    if (canvas.width === 0 || canvas.height === 0) {
+        alert("カメラの映像が取得できませんでした。");
+        return;
+    }
+
     const ctx = canvas.getContext("2d");
     
     if (ctx) {
@@ -430,7 +456,11 @@ export default function ScanPage() {
              <Camera className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">名刺</span>
            </Button>
-           <Button variant="secondary" className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm">
+           <Button 
+             variant="secondary" 
+             onClick={() => alert("バッジ撮影モードは開発中です。名刺モードをご利用ください。")}
+             className="flex-1 min-w-[80px] flex flex-col h-auto py-2 gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 shadow-sm active:scale-95 transition-transform"
+           >
              <ImageIcon className="w-5 h-5 text-gray-600" />
              <span className="text-[10px] font-bold text-gray-600">バッジ</span>
            </Button>
