@@ -140,7 +140,7 @@ export default function ListPage() {
         <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length})</h1>
+        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length}名)</h1>
         <button 
            onClick={() => router.push('/dashboard')}
            className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"
@@ -278,22 +278,22 @@ export default function ListPage() {
             <div 
               key={visitor.id} 
               className={cn(
-                "bg-white p-4 rounded-xl shadow-sm border flex items-center gap-4 group transition-all duration-200 cursor-pointer select-none",
-                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/30" : "border-gray-100",
+                "bg-white p-4 rounded-xl shadow-sm border flex items-center gap-3 group transition-all duration-200 cursor-pointer select-none relative overflow-hidden",
+                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/40" : "border-gray-100",
                 "active:scale-[0.98]"
               )}
               onClick={() => activeTab === 'unsent' && toggleSelection(visitor.id)}
             >
-              {/* Checkbox Area */}
+              {/* Checkbox Area - Fixed width */}
               {activeTab === 'unsent' && (
-                <div className="shrink-0 relative flex items-center justify-center">
+                <div className="shrink-0 flex items-center justify-center mr-1">
                    <div className={cn(
-                    "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200",
+                    "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200",
                     selectedIds.has(visitor.id) 
-                      ? "bg-primary border-primary text-white shadow-md scale-100" 
-                      : "border-gray-300 bg-gray-50 group-hover:border-primary/50 scale-95"
+                      ? "bg-primary border-primary text-white shadow-sm" 
+                      : "border-gray-300 bg-white group-hover:border-primary/50"
                   )}>
-                    {selectedIds.has(visitor.id) && <Check className="w-5 h-5 stroke-[3]" />}
+                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4 stroke-[4]" />}
                   </div>
                 </div>
               )}
