@@ -1,8 +1,6 @@
-'use client'
-
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs'
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, useClerk } from '@clerk/nextjs'
 import Link from 'next/link'
-import { X, Home, Scan, Users, Settings, LogIn, UserPlus, ChevronRight } from 'lucide-react'
+import { X, Home, Scan, Users, Settings, LogIn, UserPlus, ChevronRight, Gift, UserCog } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useEffect, useState } from 'react'
 
@@ -14,6 +12,7 @@ interface MobileNavProps {
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const [mounted, setMounted] = useState(false)
   const { user } = useUser()
+  const clerk = useClerk()
 
   useEffect(() => {
     setMounted(true)
@@ -83,7 +82,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                 >
                   <div className="flex items-center gap-3">
                     <Scan size={20} className="text-gray-300 group-hover:text-white transition-colors" />
-                    <span className="font-bold">名刺スキャン</span>
+                    <span className="font-bold">スキャン画面</span>
                   </div>
                   <ChevronRight size={16} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </Link>
@@ -101,16 +100,42 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                 </Link>
 
                 <Link 
+                  href="/gift" 
+                  className="flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group mt-3"
+                  onClick={onClose}
+                >
+                  <div className="flex items-center gap-3">
+                    <Gift size={20} className="text-gray-400 group-hover:text-gray-600" />
+                    <span className="font-bold">ギフト管理</span>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                </Link>
+
+                <Link 
                   href="/preset" 
                   className="flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group mt-3"
                   onClick={onClose}
                 >
                   <div className="flex items-center gap-3">
                     <Settings size={20} className="text-gray-400 group-hover:text-gray-600" />
-                    <span className="font-bold">イベント設定</span>
+                    <span className="font-bold">イベント選択</span>
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                 </Link>
+
+                <button 
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group mt-3"
+                  onClick={() => {
+                    clerk.openUserProfile();
+                    onClose();
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <UserCog size={20} className="text-gray-400 group-hover:text-gray-600" />
+                    <span className="font-bold">プロフィール設定</span>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                </button>
               </SignedIn>
               
               <SignedOut>
