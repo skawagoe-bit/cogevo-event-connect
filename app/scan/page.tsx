@@ -69,38 +69,24 @@ export default function ScanPage() {
 
       let stream: MediaStream;
       try {
-        // Try to get environment camera with ideal resolution
+        // Try simple config first for maximum compatibility on iOS
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: facingMode === 'user' ? 'user' : 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
             audio: false
           }
         });
       } catch (err) {
-        console.log("Ideal config failed, falling back to basic config", err);
-        try {
-            // Fallback to basic constraint
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { 
-                facingMode: facingMode === 'user' ? 'user' : 'environment',
-                audio: false
-              }
-            });
-        } catch (err2) {
-            console.log("Environment camera failed, trying any video source", err2);
-            // Fallback to any camera
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: true
-            });
-        }
+        console.log("Environment camera failed, trying any video source", err);
+        // Fallback to any camera
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+        });
       }
       
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // iOS Safari対策: playsInline属性はJSXですでに設定されているが、念のため
         videoRef.current.setAttribute('playsinline', 'true'); 
         try {
           await videoRef.current.play();
@@ -115,11 +101,13 @@ export default function ScanPage() {
       
       let msg = err.message || "カメラ起動エラー";
       if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          msg = "カメラが他のアプリやタブで使用されています。それらを閉じてから「再試行」を押してください。";
+          msg = "カメラが他のアプリ（Zoom, Teams等）で使用されています。それらを完全に終了してから再試行してください。";
       } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           msg = "カメラのアクセスが拒否されました。ブラウザの設定で許可してください。";
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           msg = "カメラが見つかりません。";
+      } else if (err.name === 'OverconstrainedError') {
+          msg = "要求されたカメラ設定に対応していません。";
       }
       
       setErrorMessage(`[${err.name}] ${msg}`);
@@ -142,21 +130,24 @@ export default function ScanPage() {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
 
+  const [cameraErrorDetail, setCameraErrorDetail] = useState<string | null>(null);
+
   const takePhoto = useCallback(() => {
     try {
+        setCameraErrorDetail(null);
         if (!videoRef.current) {
-            alert("エラー(E-01): カメラシステムが初期化されていません");
+            setCameraErrorDetail("E-01: システム初期化エラー");
             return;
         }
         
         // カメラの状態チェック
         if (!streamRef.current || !streamRef.current.active) {
-            alert("エラー(E-02): カメラが起動していません。画面上の「再試行」ボタンを押すか、ブラウザをリロードしてください。");
+            setCameraErrorDetail("E-02: カメラ未起動\n再読み込みしてください");
             return;
         }
 
         if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
-            alert("エラー(E-03): カメラの映像準備中です。少々お待ちください。");
+            setCameraErrorDetail("E-03: 映像準備中\n少し待ってから押してください");
             return;
         }
         
@@ -165,7 +156,7 @@ export default function ScanPage() {
         canvas.height = videoRef.current.videoHeight;
         
         if (canvas.width === 0 || canvas.height === 0) {
-            alert("エラー(E-04): カメラの映像サイズが取得できませんでした。");
+            setCameraErrorDetail("E-04: 映像取得失敗\nカメラが他のアプリで使用中の可能性があります");
             return;
         }
 
@@ -177,11 +168,11 @@ export default function ScanPage() {
           setCapturedImage(imageUrl);
           if (navigator.vibrate) navigator.vibrate(50);
         } else {
-            alert("エラー(E-05): 画像処理コンテキストの取得に失敗しました。");
+            setCameraErrorDetail("E-05: 画像処理エラー");
         }
     } catch (e: any) {
         console.error(e);
-        alert(`システムエラー(E-99): ${e.message}`);
+        setCameraErrorDetail(`E-99: ${e.message}`);
     }
   }, []);
 
@@ -321,7 +312,10 @@ export default function ScanPage() {
       {/* Header */}
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
+                <span className="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.7</span>
+            </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
          <Button 
@@ -371,6 +365,21 @@ export default function ScanPage() {
 
         {/* Camera Preview Area */}
         <div className="relative aspect-[4/3] bg-slate-900 mx-0 mt-0 overflow-hidden flex items-center justify-center group">
+           {cameraErrorDetail && (
+             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 text-center animate-in fade-in">
+                <div className="bg-white rounded-xl p-4 w-full max-w-xs space-y-3">
+                   <div className="text-red-500 font-bold text-lg mb-2">撮影エラー</div>
+                   <p className="text-gray-800 font-bold whitespace-pre-line">{cameraErrorDetail}</p>
+                   <p className="text-xs text-gray-500 text-left bg-gray-50 p-2 rounded">
+                      ZoomやTeamsなどの通話アプリが起動している場合、カメラを完全に終了させてから再試行してください。
+                   </p>
+                   <Button onClick={() => setCameraErrorDetail(null)} className="w-full mt-2">
+                     閉じる
+                   </Button>
+                </div>
+             </div>
+           )}
+
            {capturedImage ? (
              <div className="relative w-full h-full">
                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
