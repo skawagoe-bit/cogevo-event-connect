@@ -270,7 +270,14 @@ export default function ScanPage() {
     setEmail("taro.yamada@example.com");
     
     setIsAnalyzing(false);
-    alert("Sansanで名刺をデータ化しました");
+    
+    // スクロールして入力欄を見せる
+    setTimeout(() => {
+        const formElement = document.getElementById('visitor-form');
+        if (formElement) {
+            formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
   };
 
   const handleRegister = async () => {
@@ -341,7 +348,10 @@ export default function ScanPage() {
       {/* Header */}
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
+                <span className="bg-teal-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v2.1</span>
+            </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
          <Button 
@@ -413,8 +423,14 @@ export default function ScanPage() {
                  <Button onClick={retakePhoto} variant="secondary" className="bg-white/90 hover:bg-white">
                    再撮影
                  </Button>
-                 <Button onClick={() => alert('画像を使用します（未実装）')} className="bg-blue-600 hover:bg-blue-700 text-white">
-                   使用する
+                 <Button onClick={() => {
+                     // そのまま手入力へ進む
+                     const formElement = document.getElementById('visitor-form');
+                     if (formElement) {
+                         formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                     }
+                 }} className="bg-blue-600 hover:bg-blue-700 text-white">
+                   この写真を使う
                  </Button>
                </div>
              </div>
@@ -548,7 +564,7 @@ export default function ScanPage() {
         </div>
 
         {/* Memo Input Area (Always Visible) */}
-        <div className="px-5 pt-4">
+        <div id="visitor-form" className="px-5 pt-4">
            {/* Basic Info Inputs (Shown if filled or analyzing) */}
            {(name || company || email || isAnalyzing) && (
              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
