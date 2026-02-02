@@ -278,23 +278,28 @@ export default function ListPage() {
             <div 
               key={visitor.id} 
               className={cn(
-                "bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between group transition-all duration-200 cursor-pointer",
-                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/50" : "border-gray-100",
-                "active:scale-[0.99]"
+                "bg-white p-4 rounded-xl shadow-sm border flex items-center gap-4 group transition-all duration-200 cursor-pointer select-none",
+                activeTab === 'unsent' && selectedIds.has(visitor.id) ? "border-primary bg-blue-50/30" : "border-gray-100",
+                "active:scale-[0.98]"
               )}
               onClick={() => activeTab === 'unsent' && toggleSelection(visitor.id)}
             >
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                {activeTab === 'unsent' && (
-                  <div className={cn(
-                    "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors shrink-0",
+              {/* Checkbox Area */}
+              {activeTab === 'unsent' && (
+                <div className="shrink-0 relative flex items-center justify-center">
+                   <div className={cn(
+                    "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200",
                     selectedIds.has(visitor.id) 
-                      ? "bg-primary border-primary text-white" 
-                      : "border-gray-300 bg-white group-hover:border-primary/50"
+                      ? "bg-primary border-primary text-white shadow-md scale-100" 
+                      : "border-gray-300 bg-gray-50 group-hover:border-primary/50 scale-95"
                   )}>
-                    {selectedIds.has(visitor.id) && <Check className="w-4 h-4 stroke-[3]" />}
+                    {selectedIds.has(visitor.id) && <Check className="w-5 h-5 stroke-[3]" />}
                   </div>
-                )}
+                </div>
+              )}
+              
+              {/* Content Area */}
+              <div className="flex-1 min-w-0 flex justify-between items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-bold text-gray-800 text-lg truncate">{visitor.name || '名称未設定'}</span>
@@ -309,17 +314,18 @@ export default function ListPage() {
                   </div>
                   <div className="text-sm text-gray-500 font-medium truncate">{visitor.company || ''}</div>
                 </div>
-              </div>
-              <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
-                 {visitor.is_sent ? (
-                   <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                     <Check className="w-3 h-3" /> 送信済
-                   </span>
-                 ) : (
-                   <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                     <Clock className="w-3 h-3" /> 未送信
-                   </span>
-                 )}
+                
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                   {visitor.is_sent ? (
+                     <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                       <Check className="w-3 h-3" /> 送信済
+                     </span>
+                   ) : (
+                     <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
+                       <Clock className="w-3 h-3" /> 未送信
+                     </span>
+                   )}
+                </div>
               </div>
             </div>
           ))
@@ -329,15 +335,24 @@ export default function ListPage() {
       {activeTab === 'unsent' && (
         <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-20 safe-area-bottom">
           <Button 
-             className="w-full text-lg font-bold bg-accent hover:bg-accent/90 h-14 shadow-lg flex items-center justify-center gap-2"
+             className="w-full text-lg font-bold bg-accent hover:bg-accent/90 h-14 shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
              onClick={() => {
                 sessionStorage.setItem('send_target_ids', JSON.stringify(Array.from(selectedIds)));
                 router.push("/send");
              }}
              disabled={selectedIds.size === 0}
           >
-            <Send className="w-5 h-5" />
-            選択した {selectedIds.size} 名へ一斉送信する
+            {selectedIds.size > 0 ? (
+                <>
+                    <Send className="w-5 h-5" />
+                    選択した {selectedIds.size} 名へ一斉送信する
+                </>
+            ) : (
+                <>
+                    <X className="w-5 h-5" />
+                    送信対象を選択してください
+                </>
+            )}
           </Button>
         </div>
       )}
