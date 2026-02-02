@@ -299,7 +299,10 @@ export default function ScanPage() {
       <header className="bg-white border-b p-3 flex justify-between items-center shadow-sm z-20 shrink-0">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event</span>
-            <span className="text-sm font-bold text-gray-800">{eventName}</span>
+            <span className="text-sm font-bold text-gray-800 flex items-center gap-1">
+                {eventName}
+                <span className="text-[10px] text-gray-400 font-normal">v1.3</span>
+            </span>
          </div>
          <Button 
             variant="ghost" 
