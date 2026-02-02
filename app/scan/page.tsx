@@ -48,28 +48,39 @@ export default function ScanPage() {
 
       let stream: MediaStream;
       try {
-        // Try to get exact environment camera first
+        // Try to get environment camera with ideal resolution
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
+            facingMode: facingMode === 'user' ? 'user' : 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             audio: false
           }
         });
       } catch (err) {
-        console.log("Exact facing mode failed, falling back to ideal/default");
-        // Fallback to ideal or just string
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: facingMode === 'user' ? 'user' : 'environment',
-            audio: false
-          }
-        });
+        console.log("Ideal config failed, falling back to basic config", err);
+        try {
+            // Fallback to basic constraint
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { 
+                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                audio: false
+              }
+            });
+        } catch (err2) {
+            console.log("Environment camera failed, trying any video source", err2);
+            // Fallback to any camera
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+        }
       }
       
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // 明示的に再生を開始（iOS対策）
+        // iOS Safari対策: playsInline属性はJSXですでに設定されているが、念のため
+        videoRef.current.setAttribute('playsinline', 'true'); 
         try {
           await videoRef.current.play();
         } catch (e) {
@@ -80,7 +91,7 @@ export default function ScanPage() {
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.message || "Unknown error");
+      setErrorMessage(err.message || "カメラを起動できませんでした。ブラウザの許可設定を確認してください。");
     }
   }, [facingMode]);
 

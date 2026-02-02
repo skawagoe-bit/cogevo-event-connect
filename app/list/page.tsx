@@ -286,12 +286,12 @@ export default function ListPage() {
             >
               {/* Checkbox Area - Fixed width */}
               {activeTab === 'unsent' && (
-                <div className="shrink-0 flex items-center justify-center mr-1">
+                <div className="shrink-0 flex items-center justify-center mr-2 min-w-[32px] h-[32px]">
                    <div className={cn(
-                    "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200",
+                    "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 bg-white",
                     selectedIds.has(visitor.id) 
-                      ? "bg-primary border-primary text-white shadow-sm" 
-                      : "border-gray-300 bg-white group-hover:border-primary/50"
+                      ? "bg-primary border-primary text-white shadow-sm scale-110" 
+                      : "border-gray-300 group-hover:border-primary/50"
                   )}>
                     {selectedIds.has(visitor.id) && <Check className="w-4 h-4 stroke-[4]" />}
                   </div>
