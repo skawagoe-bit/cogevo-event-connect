@@ -140,7 +140,7 @@ export default function ListPage() {
         <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length}名) <span className="text-[10px] text-gray-400 font-normal">v1.2</span></h1>
+        <h1 className="text-lg font-bold text-gray-800">本日の登録 ({visitors.length}名) <span className="text-[10px] text-gray-400 font-normal">v1.3</span></h1>
         <button 
            onClick={() => router.push('/dashboard')}
            className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"

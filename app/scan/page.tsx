@@ -120,38 +120,45 @@ export default function ScanPage() {
   };
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current) {
-        alert("カメラシステムが初期化されていません");
-        return;
-    }
-    
-    // カメラの状態チェック
-    if (!streamRef.current || !streamRef.current.active) {
-        alert("カメラが起動していません。画面上の「再試行」ボタンを押すか、ブラウザをリロードしてください。");
-        return;
-    }
+    try {
+        if (!videoRef.current) {
+            alert("エラー(E-01): カメラシステムが初期化されていません");
+            return;
+        }
+        
+        // カメラの状態チェック
+        if (!streamRef.current || !streamRef.current.active) {
+            alert("エラー(E-02): カメラが起動していません。画面上の「再試行」ボタンを押すか、ブラウザをリロードしてください。");
+            return;
+        }
 
-    if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
-        alert("カメラの映像準備中です。少々お待ちください。");
-        return;
-    }
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    
-    if (canvas.width === 0 || canvas.height === 0) {
-        alert("カメラの映像が取得できませんでした。");
-        return;
-    }
+        if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+            alert("エラー(E-03): カメラの映像準備中です。少々お待ちください。");
+            return;
+        }
+        
+        const canvas = document.createElement("canvas");
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        
+        if (canvas.width === 0 || canvas.height === 0) {
+            alert("エラー(E-04): カメラの映像サイズが取得できませんでした。");
+            return;
+        }
 
-    const ctx = canvas.getContext("2d");
-    
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
-      setCapturedImage(imageUrl);
-      if (navigator.vibrate) navigator.vibrate(50);
+        const ctx = canvas.getContext("2d");
+        
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0);
+          const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setCapturedImage(imageUrl);
+          if (navigator.vibrate) navigator.vibrate(50);
+        } else {
+            alert("エラー(E-05): 画像処理コンテキストの取得に失敗しました。");
+        }
+    } catch (e: any) {
+        console.error(e);
+        alert(`システムエラー(E-99): ${e.message}`);
     }
   }, []);
 
