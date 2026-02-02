@@ -330,7 +330,7 @@ export default function ScanPage() {
          <div className="flex flex-col">
             <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
-                <span className="bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.8</span>
+                <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.9</span>
             </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
