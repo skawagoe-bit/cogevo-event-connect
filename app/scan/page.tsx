@@ -140,33 +140,49 @@ export default function ScanPage() {
             return;
         }
         
-        // カメラの状態チェック
+        // カメラの状態チェック (streamRef.current may be null initially, check videoRef state)
         if (!streamRef.current || !streamRef.current.active) {
-            setCameraErrorDetail("E-02: カメラ未起動\n再読み込みしてください");
-            return;
+             // Try to recover if stream is missing but video element is ready (rare edge case)
+             if (videoRef.current.srcObject) {
+                 // It's working but ref is lost? proceed cautiously
+             } else {
+                setCameraErrorDetail("E-02: カメラ未起動\n再読み込みしてください");
+                return;
+             }
         }
 
-        if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+        // readyState check: 0=HAVE_NOTHING, 1=HAVE_METADATA, 2=HAVE_CURRENT_DATA
+        if (videoRef.current.readyState < 2) { 
             setCameraErrorDetail("E-03: 映像準備中\n少し待ってから押してください");
             return;
         }
         
-        const canvas = document.createElement("canvas");
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
+        const width = videoRef.current.videoWidth;
+        const height = videoRef.current.videoHeight;
         
-        if (canvas.width === 0 || canvas.height === 0) {
+        if (!width || !height || width === 0 || height === 0) {
             setCameraErrorDetail("E-04: 映像取得失敗\nカメラが他のアプリで使用中の可能性があります");
             return;
         }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
 
         const ctx = canvas.getContext("2d");
         
         if (ctx) {
           ctx.drawImage(videoRef.current, 0, 0);
-          const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
-          setCapturedImage(imageUrl);
-          if (navigator.vibrate) navigator.vibrate(50);
+          try {
+            const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+            setCapturedImage(imageUrl);
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                try { navigator.vibrate(50); } catch (e) { /* ignore vibration error */ }
+            }
+          } catch (dataUrlError: any) {
+            console.error(dataUrlError);
+            setCameraErrorDetail(`E-06: 画像生成失敗\n${dataUrlError.message}`);
+          }
         } else {
             setCameraErrorDetail("E-05: 画像処理エラー");
         }
@@ -314,7 +330,7 @@ export default function ScanPage() {
          <div className="flex flex-col">
             <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Event Connect</span>
-                <span className="bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.7</span>
+                <span className="bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">v1.8</span>
             </div>
             <span className="text-sm font-bold text-gray-800">{eventName}</span>
          </div>
