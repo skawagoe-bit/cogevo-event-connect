@@ -351,6 +351,11 @@ export default function ScanPage() {
 
         {/* Camera Preview Area */}
         <div className="relative aspect-[4/3] bg-slate-900 mx-0 mt-0 overflow-hidden flex items-center justify-center group">
+           {/* Debug Version Indicator */}
+           <div className="absolute top-2 left-2 z-50 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold opacity-80 pointer-events-none">
+             DEBUG: v1.4
+           </div>
+
            {capturedImage ? (
              <div className="relative w-full h-full">
                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
