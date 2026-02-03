@@ -3,8 +3,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { auth } from '@clerk/nextjs/server'
 
-// Gemini API Key: Using the provided key as default
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCq-WG2oUTCS3_odCj3oQTPJZkXObfEyV8';
+// Gemini API Key
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export async function generateEmailTemplate(
