@@ -17,8 +17,8 @@ export async function generateEmailTemplate(
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
-    // Use gemini-1.5-flash-latest as default, fallback to gemini-pro if needed
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    // Use gemini-1.5-flash as default, fallback to gemini-pro if needed
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
     あなたは展示会や学会のブース担当者です。
@@ -177,7 +177,7 @@ export async function transcribeAudio(formData: FormData, apiKey?: string) {
     const arrayBuffer = await file.arrayBuffer();
     const base64Audio = Buffer.from(arrayBuffer).toString('base64');
 
-    const model = client.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = "以下の音声を文字起こししてください。商談のメモです。要点をまとめて箇条書きにしてください。";
 
     const result = await model.generateContent([
@@ -204,7 +204,7 @@ export async function translateText(text: string, targetLang: 'en' | 'ja') {
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = `Translate the following text to ${targetLang === 'en' ? 'English' : 'Japanese'}. Only output the translated text, no explanations. Text: "${text}"`;
 
     const result = await model.generateContent(prompt);
