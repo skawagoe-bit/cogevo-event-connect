@@ -152,9 +152,10 @@ export async function updateEvent(id: string, formData: FormData) {
       })
       .eq('id', id)
       .select()
-      .single()
+      .maybeSingle() // Use maybeSingle to avoid 'Row not found' error if RLS or ID is wrong
 
     if (error) throw error
+    if (!data) throw new Error('イベントが見つかりませんでした (Could not find event)')
 
     revalidatePath('/preset')
     revalidatePath('/admin/events')
