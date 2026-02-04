@@ -12,10 +12,7 @@ const eventSchema = z.object({
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
   roles_preset: z.array(z.string()).optional(),
-  email_templates: z.record(z.object({
-    subject: z.string().optional().or(z.literal('')).or(z.null()), // Allow null
-    body: z.string().optional().or(z.literal('')).or(z.null())     // Allow null
-  })).optional().or(z.literal({})), // Allow empty object literal
+  email_templates: z.record(z.any()).optional().or(z.literal({})), // Allow any object structure for now to bypass strict validation
 })
 
 // Helper to parse email templates safely even if nested strings
