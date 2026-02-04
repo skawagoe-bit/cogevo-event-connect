@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Clock, Send, Search, X, Activity } from "lucide-react";
+import { ArrowLeft, Check, Clock, Send, Search, X, Activity, Square, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -24,6 +24,9 @@ export default function ListPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Selection state for unsent items
+  const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
 
   // Initial data fetch
   useEffect(() => {
@@ -42,24 +45,39 @@ export default function ListPage() {
       const result = await getVisitors(eventId);
       
       if (result.success) {
-        setVisitors(result.data as Visitor[] || []);
+        const fetchedVisitors = result.data as Visitor[] || [];
+        setVisitors(fetchedVisitors);
         
         // Auto-select Pending tab if there are pending items
-        const pendingItems = (result.data as Visitor[]).filter(v => v.process_status === 'pending_entry');
+        const pendingItems = fetchedVisitors.filter(v => v.process_status === 'pending_entry');
         if (pendingItems.length > 0) {
             setActiveTab('pending');
         } else {
             setActiveTab('unsent');
         }
+        
+        // Initialize selection (all unsent are selected by default)
+        const unsentIds = fetchedVisitors
+            .filter(v => !v.is_sent && v.process_status !== 'pending_entry')
+            .map(v => v.id);
+        setSelectedVisitorIds(unsentIds);
 
       } else {
-        console.error('Error fetching visitors:', result.error);
+        console.error("Fetch visitors error:", result.error);
       }
       setIsLoading(false);
     };
 
     fetchVisitors();
   }, [eventId, router]);
+
+  // Update selection when visitors change (e.g. realtime update or fetch)
+  useEffect(() => {
+    // Only add new items to selection, don't re-select unchecked ones if already loaded
+    // This is tricky. Simple approach: when data loads initially (isLoading changes), set selection.
+    // For realtime, we might want to append.
+    // For now, let's keep it simple: initial load sets all. Realtime adds new ones.
+  }, [visitors]);
 
   // Realtime subscription
   useRealtimeSubscription<Visitor>(
@@ -70,7 +88,10 @@ export default function ListPage() {
     (payload) => {
       if (payload.eventType === 'INSERT') {
         setVisitors((prev) => [payload.new, ...prev]);
-        // If new pending item, switch tab? Maybe annoying.
+        // Add new unsent visitor to selection by default
+        if (!payload.new.is_sent && payload.new.process_status !== 'pending_entry') {
+            setSelectedVisitorIds(prev => [...prev, payload.new.id]);
+        }
       } else if (payload.eventType === 'UPDATE') {
         setVisitors((prev) => 
           prev.map((v) => (v.id === payload.new.id ? payload.new : v))
@@ -79,6 +100,7 @@ export default function ListPage() {
         setVisitors((prev) => 
           prev.filter((v) => v.id !== payload.old.id)
         );
+        setSelectedVisitorIds(prev => prev.filter(id => id !== payload.old.id));
       }
     }
   );
@@ -116,210 +138,247 @@ export default function ListPage() {
   const handleVisitorClick = (visitor: Visitor) => {
     if (activeTab === 'pending') {
         router.push(`/visitor/${visitor.id}/edit`);
+    } else {
+        // Toggle selection for unsent items (only if clicking the row, not specific actions)
+        if (activeTab === 'unsent') {
+            toggleSelection(visitor.id);
+        }
     }
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedVisitorIds(prev => 
+        prev.includes(id) 
+            ? prev.filter(vid => vid !== id)
+            : [...prev, id]
+    );
+  };
+
+  const handleSendMail = () => {
+    const targets = filteredVisitors.filter(v => selectedVisitorIds.includes(v.id));
+    if (targets.length === 0) {
+        alert("送信対象が選択されていません");
+        return;
+    }
+    
+    // In a real app, this would go to a bulk send confirmation page or API
+    // Passing IDs via URL or State. For now, let's just log or alert.
+    const ids = targets.map(v => v.id).join(',');
+    router.push(`/send?ids=${ids}`);
+  };
+
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-gray-50">
-      <header className="bg-white border-b p-4 flex items-center shadow-sm sticky top-0 z-10 shrink-0">
-        <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
-          <ArrowLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-lg font-bold text-gray-800">{dict.list.todays_registration} ({visitors.length})</h1>
-        <button 
-           onClick={() => router.push('/dashboard')}
-           className="ml-auto p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-primary transition-colors"
-        >
-           <Activity className="w-5 h-5" />
-        </button>
-        <button 
-           onClick={() => setIsFilterOpen(!isFilterOpen)} 
-           className={cn(
-               "ml-2 p-2 rounded-full transition-colors",
-               isFilterOpen || selectedAttribute || searchTerm ? "bg-blue-50 text-primary" : "text-gray-500 hover:bg-gray-100"
-           )}
-        >
-            <Search className="w-5 h-5" />
-        </button>
-      </header>
-      
-      {/* Filter Panel */}
-      {(isFilterOpen || selectedAttribute || searchTerm) && (
-        <div className="bg-white border-b p-4 space-y-3 animate-in slide-in-from-top-2">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                    type="text" 
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-10">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/scan')}>
+              <ArrowLeft className="w-5 h-5 text-gray-500" />
+            </Button>
+            <h1 className="font-bold text-lg text-gray-800">{dict.list.title}</h1>
+          </div>
+          <div className="flex gap-2">
+             <Button variant="ghost" size="icon" onClick={() => setIsFilterOpen(!isFilterOpen)}>
+                <Search className={cn("w-5 h-5", isFilterOpen ? "text-primary" : "text-gray-500")} />
+             </Button>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        {isFilterOpen && (
+            <div className="px-4 pb-4 animate-in slide-in-from-top-2">
+                <input
+                    type="text"
                     placeholder={dict.list.search_placeholder}
-                    className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full p-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
                 />
-                {searchTerm && (
-                    <button 
-                        onClick={() => setSearchTerm("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
             </div>
-            
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                <button
-                    onClick={() => setSelectedAttribute(null)}
-                    className={cn(
-                        "px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-colors",
-                        !selectedAttribute 
-                            ? "bg-gray-800 text-white border-gray-800" 
-                            : "bg-white text-gray-600 border-gray-200"
-                    )}
-                >
-                    {dict.list.filter_all}
-                </button>
-                {attributes.map(attr => (
-                    <button
-                        key={attr}
-                        onClick={() => setSelectedAttribute(selectedAttribute === attr ? null : attr)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-colors",
-                            selectedAttribute === attr 
-                                ? "bg-primary text-white border-primary" 
-                                : "bg-white text-gray-600 border-gray-200"
-                        )}
-                    >
-                        {t(attr)}
-                    </button>
-                ))}
-            </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex px-4 border-b overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={cn(
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              activeTab === 'pending' 
+                ? "border-yellow-500 text-yellow-600" 
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <Clock className="w-4 h-4" />
+            {dict.list.tab_pending}
+            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
+              {pendingCount}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('unsent')}
+            className={cn(
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              activeTab === 'unsent' 
+                ? "border-primary text-primary" 
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <Activity className="w-4 h-4" />
+            {dict.list.tab_unsent}
+            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
+              {unsentCount}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('sent')}
+            className={cn(
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              activeTab === 'sent' 
+                ? "border-green-500 text-green-600" 
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <Check className="w-4 h-4" />
+            {dict.list.tab_sent}
+            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
+              {sentCount}
+            </span>
+          </button>
         </div>
-      )}
-
-      <div className="p-4 flex gap-3 shrink-0 overflow-x-auto">
-        <button 
-          onClick={() => setActiveTab('pending')}
-          className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
-            activeTab === 'pending' 
-              ? "bg-purple-600 text-white shadow-md ring-2 ring-purple-600/20" 
-              : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
-          )}
-        >
-          <span>{dict.list.tab_pending}</span>
-          <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
-              activeTab === 'pending' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-          )}>{pendingCount}</span>
-        </button>
         
-        <button 
-          onClick={() => setActiveTab('unsent')}
-          className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
-            activeTab === 'unsent' 
-              ? "bg-primary text-white shadow-md ring-2 ring-primary/20" 
-              : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
-          )}
-        >
-          <span>{dict.list.tab_unsent}</span>
-          <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
-              activeTab === 'unsent' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-          )}>{unsentCount}</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('sent')}
-          className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex justify-center items-center gap-2 min-w-[100px]",
-            activeTab === 'sent' 
-              ? "bg-gray-800 text-white shadow-md ring-2 ring-gray-800/20" 
-              : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
-          )}
-        >
-          <span>{dict.list.tab_sent}</span>
-          <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px]",
-              activeTab === 'sent' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-          )}>{sentCount}</span>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-48">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : filteredVisitors.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm">
-            <span className="mb-2 block text-2xl">🔍</span>
-            {dict.list.no_results}
-          </div>
-        ) : (
-          filteredVisitors.map(visitor => (
-            <div 
-                key={visitor.id} 
-                onClick={() => handleVisitorClick(visitor)}
+        {/* Attribute Filter (Horizontal Scroll) */}
+        <div className="flex gap-2 p-3 overflow-x-auto scrollbar-hide bg-gray-50/50">
+            <button
+                onClick={() => setSelectedAttribute(null)}
                 className={cn(
-                    "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.99] transition-transform duration-100",
-                    activeTab === 'pending' ? "cursor-pointer hover:border-purple-300" : ""
+                    "px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all",
+                    !selectedAttribute 
+                        ? "bg-gray-800 text-white border-gray-800" 
+                        : "bg-white text-gray-500 border-gray-200"
                 )}
             >
-              <div className="flex items-center gap-3">
-                {activeTab === 'pending' && visitor.badge_image_url && (
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                        <img src={visitor.badge_image_url} className="w-full h-full object-cover" alt="Badge" />
+                {dict.list.filter_all}
+            </button>
+            {attributes.map(attr => (
+                <button
+                    key={attr}
+                    onClick={() => setSelectedAttribute(attr)}
+                    className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all",
+                        selectedAttribute === attr 
+                            ? "bg-primary text-white border-primary shadow-sm" 
+                            : "bg-white text-gray-500 border-gray-200"
+                    )}
+                >
+                    {t(attr)}
+                </button>
+            ))}
+        </div>
+      </header>
+
+      {/* List Content */}
+      <div className="flex-1 overflow-y-auto p-4 pb-24">
+        {isLoading ? (
+            <div className="flex justify-center py-10">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full"></div>
+            </div>
+        ) : filteredVisitors.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                <Search className="w-12 h-12 mb-2 opacity-20" />
+                <p className="text-sm">{dict.list.no_results}</p>
+            </div>
+        ) : (
+            <div className="space-y-3">
+                {activeTab === 'unsent' && (
+                    <div className="text-xs text-gray-500 font-bold px-1">
+                        {filteredVisitors.filter(v => selectedVisitorIds.includes(v.id)).length} / {filteredVisitors.length} 件選択中
                     </div>
                 )}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-gray-800 text-lg">
-                        {activeTab === 'pending' ? dict.list.pending_label : (visitor.name || dict.list.name_not_set)}
-                    </span>
-                    <span className={cn(
-                      "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
-                      visitor.attribute === '医師' ? "bg-blue-100 text-blue-700" :
-                      visitor.attribute === 'PT' || visitor.attribute === 'OT' || visitor.attribute === 'ST' ? "bg-green-100 text-green-700" :
-                      "bg-gray-100 text-gray-600"
-                    )}>
-                      {t(visitor.attribute || dict.list.not_set)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    {activeTab === 'pending' ? dict.list.pending_desc : (visitor.company || '')}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                 {activeTab === 'pending' ? (
-                   <span className="text-purple-600 text-xs font-bold flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-full border border-purple-100">
-                     <Clock className="w-3 h-3" /> {dict.common.edit}
-                   </span>
-                 ) : visitor.is_sent ? (
-                   <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                     <Check className="w-3 h-3" /> {dict.list.tab_sent}
-                   </span>
-                 ) : (
-                   <span className="text-orange-500 text-xs font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                     <Clock className="w-3 h-3" /> {dict.list.tab_unsent}
-                   </span>
-                 )}
-              </div>
+                {filteredVisitors.map((visitor) => (
+                    <div 
+                        key={visitor.id} 
+                        className={cn(
+                            "bg-white rounded-xl border shadow-sm p-4 active:scale-[0.99] transition-transform",
+                            activeTab === 'unsent' && selectedVisitorIds.includes(visitor.id) ? "ring-2 ring-primary ring-offset-1 border-primary/50" : "border-gray-100"
+                        )}
+                        onClick={() => handleVisitorClick(visitor)}
+                    >
+                        <div className="flex items-start gap-3">
+                            {/* Checkbox for Unsent */}
+                            {activeTab === 'unsent' && (
+                                <div className="mt-1" onClick={(e) => { e.stopPropagation(); toggleSelection(visitor.id); }}>
+                                    {selectedVisitorIds.includes(visitor.id) ? (
+                                        <CheckSquare className="w-5 h-5 text-primary" />
+                                    ) : (
+                                        <Square className="w-5 h-5 text-gray-300" />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Badge/Icon */}
+                            <div className="relative shrink-0">
+                                {visitor.badge_image_url || visitor.image_url ? (
+                                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                                        <img 
+                                            src={visitor.badge_image_url || visitor.image_url || ""} 
+                                            alt="Card" 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-lg border border-primary/20">
+                                        {(visitor.name || "?")[0]}
+                                    </div>
+                                )}
+                                {visitor.process_status === 'pending_entry' && (
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white" />
+                                )}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-gray-900 truncate pr-2">
+                                        {visitor.name || dict.list.name_not_set}
+                                    </h3>
+                                    <span className="text-[10px] text-gray-400 whitespace-nowrap bg-gray-50 px-1.5 py-0.5 rounded">
+                                        {new Date(visitor.created_at).getHours()}:{String(new Date(visitor.created_at).getMinutes()).padStart(2, '0')}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-500 font-medium truncate mt-0.5">
+                                    {visitor.company || dict.list.not_set}
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700">
+                                        {t(visitor.attribute)}
+                                    </span>
+                                    {visitor.segment && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
+                                            {t(visitor.segment)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
-          ))
         )}
       </div>
 
-      {activeTab === 'unsent' && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-20 safe-area-bottom">
-          <Button 
-             className="w-full text-lg font-bold bg-accent hover:bg-accent/90 h-14 shadow-lg flex items-center justify-center gap-2"
-             onClick={() => router.push("/send")}
-             disabled={unsentCount === 0}
-          >
-            <Send className="w-5 h-5" />
-            {dict.list.check_bulk_send}
-          </Button>
-        </div>
+      {/* Footer Action */}
+      {activeTab === 'unsent' && selectedVisitorIds.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+            <div className="max-w-md mx-auto">
+                <Button 
+                    className="w-full h-12 text-lg font-bold shadow-lg animate-in slide-in-from-bottom-4"
+                    onClick={handleSendMail}
+                >
+                    <Send className="w-5 h-5 mr-2" />
+                    {dict.list.send_mail} ({filteredVisitors.filter(v => selectedVisitorIds.includes(v.id)).length}件)
+                </Button>
+            </div>
+          </div>
       )}
     </div>
   );
