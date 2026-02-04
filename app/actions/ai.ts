@@ -7,7 +7,7 @@ import { auth } from '@clerk/nextjs/server'
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // SDKを使わずに直接REST APIを叩くヘルパー関数
-async function callGeminiDirectly(promptText: string, modelName: string = 'gemini-1.5-flash') {
+async function callGeminiDirectly(promptText: string, modelName: string) {
   if (!GEMINI_API_KEY) throw new Error('API Key is missing');
   
   // v1beta API endpoint with explicit model name
@@ -27,8 +27,8 @@ async function callGeminiDirectly(promptText: string, modelName: string = 'gemin
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    console.error('Gemini API Error:', JSON.stringify(errorData, null, 2));
-    throw new Error(`Gemini API request failed: ${response.status} ${response.statusText} - ${errorData.error?.message || ''}`);
+    console.warn(`Gemini API Error (${modelName}):`, JSON.stringify(errorData, null, 2));
+    throw new Error(`Gemini API request failed: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -69,17 +69,34 @@ export async function generateEmailTemplate(
     - 本文中の改行は \n を使用してください。
     `;
 
-    // Try ONLY gemini-1.5-flash as verified in AI Studio
+    // ユーザー環境で動作確認できたモデルから順に試す
+    // gemini-3-flash-preview がAI Studioで選択されていたため最優先
+    const modelsToTry = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.0-pro',
+        'gemini-pro'
+    ];
+
     let text = '';
-    try {
-        text = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
-    } catch (e: any) {
-        // Fallback to gemini-1.0-pro only if flash fails unexpectedly
-        console.warn('gemini-1.5-flash failed, trying gemini-1.0-pro', e);
-        if (e.message.includes('404')) {
-             throw new Error('モデルが見つかりません。APIキーの設定を確認してください。');
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Trying model: ${modelName}`);
+            text = await callGeminiDirectly(prompt, modelName);
+            // 成功したらループを抜ける
+            break; 
+        } catch (e: any) {
+            console.warn(`Model ${modelName} failed.`, e.message);
+            lastError = e;
+            // 失敗したら次のモデルへ
         }
-        text = await callGeminiDirectly(prompt, 'gemini-1.0-pro');
+    }
+
+    if (!text && lastError) {
+        // 全滅した場合
+        throw new Error(`全てのモデルで生成に失敗しました。APIキーの設定を確認してください。(${lastError.message})`);
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -102,6 +119,7 @@ export async function generateEmailTemplate(
     return { success: false, error: error.message || 'AI生成中にエラーが発生しました' }
   }
 }
+
 
 
 
@@ -246,14 +264,29 @@ export async function translateText(text: string, targetLang: 'en' | 'ja') {
 
     const prompt = `Translate the following text to ${targetLang === 'en' ? 'English' : 'Japanese'}. Only output the translated text, no explanations. Text: "${text}"`;
 
-    // Try directly calling API with gemini-1.5-flash
+    // Try directly calling API with multiple models
+    const modelsToTry = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.0-pro',
+        'gemini-pro'
+    ];
+    
     let translated = '';
-    try {
-        translated = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
-    } catch (e) {
-        translated = await callGeminiDirectly(prompt, 'gemini-1.0-pro');
+    
+    for (const modelName of modelsToTry) {
+        try {
+            translated = await callGeminiDirectly(prompt, modelName);
+            break; 
+        } catch (e) {
+            // continue to next model
+        }
     }
     
+    if (!translated) {
+        throw new Error('翻訳に失敗しました');
+    }
+
     return { success: true, data: translated.trim() };
   } catch (error: any) {
     console.error('Translation Error:', error);
