@@ -5,7 +5,38 @@ import { auth } from '@clerk/nextjs/server'
 
 // Gemini API Key
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// SDKを使わずに直接REST APIを叩くヘルパー関数
+async function callGeminiDirectly(promptText: string, modelName: string = 'gemini-1.5-flash') {
+  if (!GEMINI_API_KEY) throw new Error('API Key is missing');
+  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: promptText }]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Gemini API Error:', JSON.stringify(errorData, null, 2));
+    throw new Error(`Gemini API request failed: ${response.status} ${response.statusText} - ${errorData.error?.message || ''}`);
+  }
+
+  const data = await response.json();
+  if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+    throw new Error('No content generated');
+  }
+
+  return data.candidates[0].content.parts[0].text;
+}
 
 export async function generateEmailTemplate(
   eventName: string,
@@ -16,9 +47,6 @@ export async function generateEmailTemplate(
   try {
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
-
-    // Use gemini-pro (v1.0) as it is the most stable on v1beta API
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     const prompt = `
     あなたは展示会や学会のブース担当者です。
@@ -40,9 +68,14 @@ export async function generateEmailTemplate(
     - 本文中の改行は \n を使用してください。
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Try with gemini-1.5-flash first, then fallback to gemini-pro if needed
+    let text = '';
+    try {
+        text = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
+    } catch (e) {
+        console.warn('gemini-1.5-flash failed, trying gemini-pro', e);
+        text = await callGeminiDirectly(prompt, 'gemini-pro');
+    }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -64,6 +97,7 @@ export async function generateEmailTemplate(
     return { success: false, error: error.message || 'AI生成中にエラーが発生しました' }
   }
 }
+
 
 export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
   try {
@@ -204,12 +238,17 @@ export async function translateText(text: string, targetLang: 'en' | 'ja') {
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const prompt = `Translate the following text to ${targetLang === 'en' ? 'English' : 'Japanese'}. Only output the translated text, no explanations. Text: "${text}"`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { success: true, data: response.text().trim() };
+    // Try directly calling API
+    let translated = '';
+    try {
+        translated = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
+    } catch (e) {
+        translated = await callGeminiDirectly(prompt, 'gemini-pro');
+    }
+    
+    return { success: true, data: translated.trim() };
   } catch (error: any) {
     console.error('Translation Error:', error);
     return { success: false, error: error.message }
