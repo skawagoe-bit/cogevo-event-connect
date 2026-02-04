@@ -722,9 +722,8 @@ export default function ScanPage() {
 
         {/* Memo Input Area */}
         <div className="px-5 pt-4">
-           {(capturedImage || name || company || email || isAnalyzing) && (
-             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3 animate-in fade-in slide-in-from-top-4">
-               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">{dict.scan.card_info} (Sansan)</h3>
+             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3">
+               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">{dict.scan.card_info}</h3>
                <div className="space-y-2">
                  <input 
                    value={company}
@@ -746,7 +745,6 @@ export default function ScanPage() {
                  />
                </div>
              </div>
-           )}
 
            <div className="bg-yellow-50/50 p-3 rounded-xl border border-yellow-100">
              <label className="text-xs font-bold text-gray-500 flex items-center gap-2 mb-2 uppercase tracking-wide">
