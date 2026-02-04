@@ -121,7 +121,32 @@ export default function AdminEventsPage() {
         formData.append("roles_preset", JSON.stringify(roles));
         
         console.log("Saving email templates:", emailTemplates);
-        formData.append("email_templates", JSON.stringify(emailTemplates));
+        // Ensure emailTemplates is an object and values are objects
+        const cleanTemplates: Record<string, {subject: string, body: string}> = {};
+        if (emailTemplates && typeof emailTemplates === 'object') {
+            Object.entries(emailTemplates).forEach(([key, val]) => {
+                if (typeof val === 'string') {
+                    // Try to parse if it's a string (recovery from bad data)
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (typeof parsed === 'object') {
+                            cleanTemplates[key] = { 
+                                subject: parsed.subject || "", 
+                                body: parsed.body || "" 
+                            };
+                        }
+                    } catch (e) {
+                        console.warn(`Skipping invalid template for ${key}`, val);
+                    }
+                } else if (typeof val === 'object' && val !== null) {
+                    cleanTemplates[key] = {
+                        subject: String(val.subject || ""),
+                        body: String(val.body || "")
+                    };
+                }
+            });
+        }
+        formData.append("email_templates", JSON.stringify(cleanTemplates));
 
         let result;
         if (editingEvent) {

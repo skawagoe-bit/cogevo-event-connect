@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 
 const eventSchema = z.object({
   name: z.string().min(1, 'イベント名は必須です'),
-  name_en: z.string().optional().or(z.literal('')), // Added
+  name_en: z.string().nullable().optional().or(z.literal('')), // nullable追加
   event_date: z.string(),
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
@@ -50,9 +50,16 @@ export async function createEvent(formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
-      email_templates: formData.get('email_templates')
-        ? JSON.parse(formData.get('email_templates') as string)
-        : undefined,
+      email_templates: (() => {
+          const tmpl = formData.get('email_templates');
+          if (!tmpl) return undefined;
+          try {
+             return JSON.parse(tmpl as string);
+          } catch (e) {
+             console.error("Failed to parse email_templates", e);
+             return {};
+          }
+      })(),
     }
 
     const validated = eventSchema.parse(rawData)
@@ -106,9 +113,16 @@ export async function updateEvent(id: string, formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
-      email_templates: formData.get('email_templates')
-        ? JSON.parse(formData.get('email_templates') as string)
-        : undefined,
+      email_templates: (() => {
+          const tmpl = formData.get('email_templates');
+          if (!tmpl) return undefined;
+          try {
+             return JSON.parse(tmpl as string);
+          } catch (e) {
+             console.error("Failed to parse email_templates", e);
+             return {};
+          }
+      })(),
     }
 
     const validated = eventSchema.parse(rawData)
