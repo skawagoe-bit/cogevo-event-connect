@@ -310,9 +310,10 @@ export async function translateText(text: string, targetLang: 'en' | 'ja') {
 
     // Try directly calling API with multiple models
     const modelsToTry = [
+        'gemini-3-flash-preview',
+        'gemini-2.0-flash-exp',
         'gemini-1.5-flash',
         'gemini-1.5-flash-latest',
-        'gemini-1.0-pro',
         'gemini-pro'
     ];
     
