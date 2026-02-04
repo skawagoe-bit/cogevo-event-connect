@@ -86,8 +86,8 @@ export default function ScanPage() {
       }
 
       // Check if mediaDevices is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("カメラAPIがこのブラウザでサポートされていません (navigator.mediaDevices undefined)");
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("カメラAPIがこのブラウザでサポートされていません");
       }
 
       let stream: MediaStream;
@@ -95,8 +95,8 @@ export default function ScanPage() {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
-            audio: false
-          }
+          },
+          audio: false
         });
       } catch (err) {
         console.log("Exact facing mode failed, falling back to ideal/default");
@@ -104,8 +104,8 @@ export default function ScanPage() {
             stream = await navigator.mediaDevices.getUserMedia({
             video: { 
                 facingMode: facingMode === 'user' ? 'user' : 'environment',
-                audio: false
-            }
+            },
+            audio: false
             });
         } catch (fallbackErr) {
             // Last resort: any video
@@ -173,8 +173,15 @@ export default function ScanPage() {
     if (!videoRef.current) return;
     
     // Check if video is actually playing and has dimensions
+    if (videoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+        console.warn("Video not ready (readyState < 2)");
+        alert("カメラの準備中です。少し待ってから再度お試しください。");
+        return;
+    }
+
     if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-        console.warn("Video not ready yet");
+        console.warn("Video not ready yet (dimensions 0)");
+        alert("カメラ映像が正しく読み込まれていません。ページを更新してください。");
         return;
     }
     
@@ -190,13 +197,20 @@ export default function ScanPage() {
           setCapturedImage(imageUrl);
           setIsImageConfirmed(false); // Always standard flow now
     
-          if (navigator.vibrate) navigator.vibrate(50);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+             navigator.vibrate(50);
+          }
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error("Take photo error:", e);
-        alert("撮影に失敗しました");
+        alert("撮影に失敗しました: " + (e.message || "不明なエラー"));
     }
   }, [isBadgeMode]);
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    setIsImageConfirmed(false);
+  };
 
   // Handle switching modes and auto-starting camera
   const handleModeSwitch = (mode: 'card' | 'badge') => {

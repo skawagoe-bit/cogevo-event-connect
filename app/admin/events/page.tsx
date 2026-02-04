@@ -184,14 +184,16 @@ export default function AdminEventsPage() {
   };
 
   const handleGenerateTemplate = async () => {
-    if (!name || attributes.length === 0 || !selectedTemplateSegment) {
-      alert("AI生成には、イベント名、属性、顧客区分の情報が必要です。");
+    if (attributes.length === 0 || !selectedTemplateSegment) {
+      alert("AI生成には、属性、顧客区分の情報が必要です。");
       return;
     }
 
     setIsGenerating(true);
     try {
-      const result = await generateEmailTemplate(name, selectedTemplateSegment, attributes, roles);
+      // イベント名が未入力の場合は仮の名称を使用
+      const eventNameToUse = name || "今回のイベント";
+      const result = await generateEmailTemplate(eventNameToUse, selectedTemplateSegment, attributes, roles);
       if (result.success && result.data) {
         handleTemplateChange(selectedTemplateSegment, 'subject', result.data.subject);
         handleTemplateChange(selectedTemplateSegment, 'body', result.data.body);
