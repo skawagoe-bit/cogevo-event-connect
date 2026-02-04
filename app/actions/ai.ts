@@ -2,6 +2,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { auth } from '@clerk/nextjs/server'
+import { createClient } from '@supabase/supabase-js'
 
 // Gemini API Key
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -49,6 +50,37 @@ export async function generateEmailTemplate(
     const { userId } = await auth()
     if (!userId) throw new Error('認証が必要です')
 
+    // ユーザー情報の取得（署名用）
+    let userProfile = {
+      full_name: '',
+      department: '',
+      sansan_url: ''
+    };
+
+    try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        
+        const { data: user } = await supabase
+          .from('users')
+          .select('full_name, department, sansan_url')
+          .eq('clerk_user_id', userId)
+          .single();
+        
+        if (user) {
+            userProfile = {
+                full_name: user.full_name || '',
+                department: user.department || '',
+                sansan_url: user.sansan_url || ''
+            };
+        }
+    } catch (profileError) {
+        console.warn('Failed to fetch user profile for signature:', profileError);
+        // プロフィール取得失敗してもメール生成は続行
+    }
+
     const prompt = `
     あなたは展示会や学会のブース担当者です。
     以下の情報をもとに、来場者へ送る「お礼メール」の件名と本文を作成してください。
@@ -60,11 +92,17 @@ export async function generateEmailTemplate(
     
     【送信相手の区分】
     ${segment}
+
+    【署名情報（送信者）】
+    氏名: ${userProfile.full_name || '担当者名'}
+    部署: ${userProfile.department || '担当部署'}
+    オンライン名刺URL: ${userProfile.sansan_url || '(URLなし)'}
     
     【要件】
     - 件名は30文字以内で、開封したくなるような魅力的なものにしてください。
     - 本文は、相手の区分（${segment}）に合わせた適切なトーンと内容にしてください。
     - ${segment}が「新規リード」の場合は興味喚起を、「既存顧客」の場合は感謝と関係強化を、「パートナー」の場合は協業の可能性を意識してください。
+    - 文末には上記の署名情報を整えて記載してください。特にオンライン名刺URLがある場合は、アクセスを促す一言を添えてください。
     - JSON形式で出力してください。フォーマット: { "subject": "件名", "body": "本文" }
     - 本文中の改行は \n を使用してください。
     `;
