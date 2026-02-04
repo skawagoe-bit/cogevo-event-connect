@@ -13,8 +13,8 @@ const eventSchema = z.object({
   segments_preset: z.array(z.string()).optional(),
   roles_preset: z.array(z.string()).optional(),
   email_templates: z.record(z.object({
-    subject: z.string().optional().or(z.literal('')),
-    body: z.string().optional().or(z.literal(''))
+    subject: z.string().optional().or(z.literal('')).or(z.null()), // Allow null
+    body: z.string().optional().or(z.literal('')).or(z.null())     // Allow null
   })).optional(),
 })
 
