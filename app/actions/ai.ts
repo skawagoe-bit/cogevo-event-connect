@@ -72,6 +72,7 @@ export async function generateEmailTemplate(
     // ユーザー環境で動作確認できたモデルから順に試す
     // gemini-3-flash-preview がAI Studioで選択されていたため最優先
     const modelsToTry = [
+        'gemini-3-flash-preview',
         'gemini-1.5-flash',
         'gemini-1.5-flash-latest',
         'gemini-1.0-pro',
