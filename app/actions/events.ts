@@ -18,6 +18,39 @@ const eventSchema = z.object({
   })).optional(),
 })
 
+// Helper to parse email templates safely even if nested strings
+function parseEmailTemplates(jsonString: string | null): Record<string, any> | undefined {
+    if (!jsonString) return undefined;
+    try {
+        const parsed = JSON.parse(jsonString);
+        if (parsed && typeof parsed === 'object') {
+            const clean: Record<string, any> = {};
+            Object.keys(parsed).forEach(key => {
+                const val = parsed[key];
+                if (typeof val === 'string') {
+                    try {
+                        // If the value is a string, try to parse it as JSON
+                        const inner = JSON.parse(val);
+                        if (inner && typeof inner === 'object') {
+                            clean[key] = inner;
+                        }
+                    } catch {
+                        // If parsing fails, ignore this key or keep as is?
+                        // To pass Zod validation which expects object, we should skip it if it's not object.
+                    }
+                } else if (val && typeof val === 'object') {
+                    clean[key] = val;
+                }
+            });
+            return clean;
+        }
+        return parsed;
+    } catch (e) {
+        console.error("Failed to parse email_templates", e);
+        return {};
+    }
+}
+
 export async function createEvent(formData: FormData) {
   try {
     const { userId } = await auth()
@@ -50,16 +83,7 @@ export async function createEvent(formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
-      email_templates: (() => {
-          const tmpl = formData.get('email_templates');
-          if (!tmpl) return undefined;
-          try {
-             return JSON.parse(tmpl as string);
-          } catch (e) {
-             console.error("Failed to parse email_templates", e);
-             return {};
-          }
-      })(),
+      email_templates: parseEmailTemplates(formData.get('email_templates') as string | null),
     }
 
     const validated = eventSchema.parse(rawData)
@@ -113,16 +137,7 @@ export async function updateEvent(id: string, formData: FormData) {
       roles_preset: formData.get('roles_preset')
         ? JSON.parse(formData.get('roles_preset') as string)
         : undefined,
-      email_templates: (() => {
-          const tmpl = formData.get('email_templates');
-          if (!tmpl) return undefined;
-          try {
-             return JSON.parse(tmpl as string);
-          } catch (e) {
-             console.error("Failed to parse email_templates", e);
-             return {};
-          }
-      })(),
+      email_templates: parseEmailTemplates(formData.get('email_templates') as string | null),
     }
 
     const validated = eventSchema.parse(rawData)
