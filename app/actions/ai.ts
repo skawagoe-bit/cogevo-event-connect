@@ -10,6 +10,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 async function callGeminiDirectly(promptText: string, modelName: string = 'gemini-1.5-flash') {
   if (!GEMINI_API_KEY) throw new Error('API Key is missing');
   
+  // v1beta API endpoint with explicit model name
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
   
   const response = await fetch(url, {
@@ -68,13 +69,17 @@ export async function generateEmailTemplate(
     - 本文中の改行は \n を使用してください。
     `;
 
-    // Try with gemini-1.5-flash first, then fallback to gemini-pro if needed
+    // Try ONLY gemini-1.5-flash as verified in AI Studio
     let text = '';
     try {
         text = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
-    } catch (e) {
-        console.warn('gemini-1.5-flash failed, trying gemini-pro', e);
-        text = await callGeminiDirectly(prompt, 'gemini-pro');
+    } catch (e: any) {
+        // Fallback to gemini-1.0-pro only if flash fails unexpectedly
+        console.warn('gemini-1.5-flash failed, trying gemini-1.0-pro', e);
+        if (e.message.includes('404')) {
+             throw new Error('モデルが見つかりません。APIキーの設定を確認してください。');
+        }
+        text = await callGeminiDirectly(prompt, 'gemini-1.0-pro');
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -97,6 +102,7 @@ export async function generateEmailTemplate(
     return { success: false, error: error.message || 'AI生成中にエラーが発生しました' }
   }
 }
+
 
 
 export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
@@ -240,12 +246,12 @@ export async function translateText(text: string, targetLang: 'en' | 'ja') {
 
     const prompt = `Translate the following text to ${targetLang === 'en' ? 'English' : 'Japanese'}. Only output the translated text, no explanations. Text: "${text}"`;
 
-    // Try directly calling API
+    // Try directly calling API with gemini-1.5-flash
     let translated = '';
     try {
         translated = await callGeminiDirectly(prompt, 'gemini-1.5-flash');
     } catch (e) {
-        translated = await callGeminiDirectly(prompt, 'gemini-pro');
+        translated = await callGeminiDirectly(prompt, 'gemini-1.0-pro');
     }
     
     return { success: true, data: translated.trim() };
