@@ -87,7 +87,7 @@ export default function ScanPage() {
 
       // Check if mediaDevices is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("カメラがサポートされていないブラウザです");
+        throw new Error("カメラAPIがこのブラウザでサポートされていません (navigator.mediaDevices undefined)");
       }
 
       let stream: MediaStream;
@@ -129,7 +129,7 @@ export default function ScanPage() {
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.message || "カメラの起動に失敗しました");
+      setErrorMessage(err.toString() + " (Stack: " + (err.stack || "") + ")");
     }
   }, [facingMode]);
 
@@ -573,13 +573,15 @@ export default function ScanPage() {
                className="absolute inset-0 w-full h-full object-cover"
              />
            ) : (
-             <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center">
+             <div className="text-gray-400 flex flex-col items-center animate-pulse p-4 text-center w-full">
                <Camera className="w-12 h-12 mb-3 opacity-50" />
                <span className="text-sm font-medium tracking-wide mb-2">
                  {hasCameraPermission === false ? dict.scan.camera_error : dict.scan.camera_starting}
                </span>
                {errorMessage && (
-                 <span className="text-xs text-red-400 mb-4 block max-w-[200px] break-words">{errorMessage}</span>
+                 <div className="text-xs text-red-400 mb-4 block w-full break-words bg-black/50 p-2 rounded text-left overflow-y-auto max-h-32">
+                    ERROR: {errorMessage}
+                 </div>
                )}
                {hasCameraPermission === false && (
                  <Button onClick={() => startCamera()} variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10">
