@@ -85,6 +85,11 @@ export default function ScanPage() {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("カメラがサポートされていないブラウザです");
+      }
+
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -95,28 +100,36 @@ export default function ScanPage() {
         });
       } catch (err) {
         console.log("Exact facing mode failed, falling back to ideal/default");
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: facingMode === 'user' ? 'user' : 'environment',
-            audio: false
-          }
-        });
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                audio: false
+            }
+            });
+        } catch (fallbackErr) {
+            // Last resort: any video
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
       }
       
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        try {
-          await videoRef.current.play();
-        } catch (e) {
-          console.error("Play error:", e);
-        }
+        // iOS Safari fix: playing via promise
+        videoRef.current.onloadedmetadata = async () => {
+            try {
+                await videoRef.current?.play();
+            } catch (e) {
+                console.error("Play error:", e);
+            }
+        };
       }
       setHasCameraPermission(true);
     } catch (err: any) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.message || "Unknown error");
+      setErrorMessage(err.message || "カメラの起動に失敗しました");
     }
   }, [facingMode]);
 
@@ -159,18 +172,29 @@ export default function ScanPage() {
   const takePhoto = useCallback(() => {
     if (!videoRef.current) return;
     
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
+    // Check if video is actually playing and has dimensions
+    if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+        console.warn("Video not ready yet");
+        return;
+    }
     
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
-      setCapturedImage(imageUrl);
-      setIsImageConfirmed(false); // Always standard flow now
-
-      if (navigator.vibrate) navigator.vibrate(50);
+    try {
+        const canvas = document.createElement("canvas");
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext("2d");
+        
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0);
+          const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+          setCapturedImage(imageUrl);
+          setIsImageConfirmed(false); // Always standard flow now
+    
+          if (navigator.vibrate) navigator.vibrate(50);
+        }
+    } catch (e) {
+        console.error("Take photo error:", e);
+        alert("撮影に失敗しました");
     }
   }, [isBadgeMode]);
 
