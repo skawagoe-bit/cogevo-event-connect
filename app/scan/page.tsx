@@ -14,6 +14,9 @@ import { useTranslation } from "@/lib/i18n/context";
 import { digitizeCardWithSansan } from "@/app/actions/sansan";
 import { analyzeBusinessCard, transcribeAudio } from "@/app/actions/ai";
 
+// Force dynamic rendering to prevent static generation issues with environment variables
+export const dynamic = 'force-dynamic';
+
 export default function ScanPage() {
   const router = useRouter();
   const { dict, language, t } = useTranslation();
