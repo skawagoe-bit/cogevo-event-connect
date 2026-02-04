@@ -196,7 +196,7 @@ export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
     `;
 
     // Try multiple models in order of preference/speed
-    const modelsToTry = ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+    const modelsToTry = ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-pro'];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
