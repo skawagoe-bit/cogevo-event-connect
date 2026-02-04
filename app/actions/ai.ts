@@ -111,9 +111,8 @@ export async function generateEmailTemplate(
     // gemini-3-flash-preview がAI Studioで選択されていたため最優先
     const modelsToTry = [
         'gemini-3-flash-preview',
+        'gemini-2.0-flash-exp',
         'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-1.0-pro',
         'gemini-pro'
     ];
 
@@ -196,7 +195,13 @@ export async function analyzeBusinessCard(formData: FormData, apiKey?: string) {
     `;
 
     // Try multiple models in order of preference/speed
-    const modelsToTry = ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-pro'];
+    // gemini-3-flash-preview がAI Studioで選択されているため最優先で試す
+    const modelsToTry = [
+        'gemini-3-flash-preview', 
+        'gemini-2.0-flash-exp', 
+        'gemini-1.5-flash', 
+        'gemini-pro'
+    ];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
