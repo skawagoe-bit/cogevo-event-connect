@@ -170,7 +170,8 @@ export async function getVisitors(eventId: string) {
       .from('visitors')
       .select('*')
       .eq('event_id', eventId)
-      .order('scanned_at', { ascending: false })
+      // Newest first
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
