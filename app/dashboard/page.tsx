@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, TrendingUp, Users, Trophy, Activity, Target, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
+import { getProfile } from "@/app/actions/profile";
 
 // Mock data
 const rankings = [
@@ -16,6 +18,18 @@ const rankings = [
 export default function DashboardPage() {
   const router = useRouter();
   const { dict, t } = useTranslation();
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+        const result = await getProfile();
+        if (result.success && result.data) {
+            // Prefer full_name, fallback to email local part
+            setUserName(result.data.full_name || result.data.email?.split('@')[0] || "");
+        }
+    };
+    fetchProfile();
+  }, []);
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
@@ -24,10 +38,17 @@ export default function DashboardPage() {
             <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
             </button>
-            <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            {dict.dashboard.title}
-            </h1>
+            <div className="flex flex-col">
+                <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary" />
+                {dict.dashboard.title}
+                </h1>
+                {userName && (
+                    <span className="text-xs text-gray-500 font-medium ml-7">
+                        {userName} さん
+                    </span>
+                )}
+            </div>
         </div>
         <button 
             onClick={() => router.push('/admin')}
