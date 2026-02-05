@@ -28,7 +28,7 @@ export async function agreeToTerms() {
 
   if (error) {
     console.error("Failed to agree to terms:", error);
-    throw error;
+    throw new Error(`Failed to save agreement: ${error.message}`);
   }
 
   redirect('/')

@@ -16,8 +16,11 @@ export default function TermsPage() {
     setIsLoading(true);
     try {
         await agreeToTerms();
-    } catch (e) {
-        alert("エラーが発生しました。もう一度お試しください。");
+    } catch (e: any) {
+        console.error("Agreement error:", e);
+        // Display specific error message if available, or generic one
+        const msg = e.message || "エラーが発生しました";
+        alert(`処理に失敗しました: ${msg}`);
         setIsLoading(false);
     }
   };
