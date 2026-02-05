@@ -94,52 +94,78 @@ export default function ScanPage() {
       const isUser = facingMode === 'user';
       
       try {
-        // First try: Exact facing mode (prioritize resolution)
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: isUser ? 'user' : { exact: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          audio: false
-        });
-      } catch (err) {
-        console.log("Exact facing mode failed, falling back to ideal");
-        try {
-            // Second try: Ideal facing mode
-            stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-                facingMode: isUser ? 'user' : 'environment',
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
-            },
-            audio: false
-            });
-        } catch (fallbackErr) {
-            console.log("Ideal facing mode failed, trying device enumeration");
-            // Third try: Enumerate devices to find a back camera explicitly
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const backCamera = devices.find(d => 
-                    d.kind === 'videoinput' && 
-                    (d.label.toLowerCase().includes('back') || 
-                     d.label.toLowerCase().includes('rear') || 
-                     d.label.toLowerCase().includes('environment'))
-                );
-                
-                if (backCamera && !isUser) {
+        if (!isUser) {
+             // For environment (rear) camera, be very specific
+             try {
+                // 1. Try exact environment with ideal resolution
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { 
+                    facingMode: { exact: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                  },
+                  audio: false
+                });
+             } catch (e) {
+                console.log("1. Exact environment failed, trying without resolution constraints");
+                try {
+                    // 2. Try exact environment WITHOUT resolution constraints
                     stream = await navigator.mediaDevices.getUserMedia({
-                        video: { deviceId: { exact: backCamera.deviceId } },
-                        audio: false
+                      video: { 
+                        facingMode: { exact: 'environment' }
+                      },
+                      audio: false
                     });
-                } else {
-                    // Last resort: any video
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                } catch (e2) {
+                    console.log("2. Exact environment no-res failed, trying ideal environment");
+                    try {
+                        // 3. Try ideal environment
+                        stream = await navigator.mediaDevices.getUserMedia({
+                          video: { 
+                            facingMode: 'environment',
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                          },
+                          audio: false
+                        });
+                    } catch (e3) {
+                         console.log("3. Ideal environment failed, searching devices");
+                         // 4. Search devices for "back"
+                         const devices = await navigator.mediaDevices.enumerateDevices();
+                         const backCamera = devices.find(d => 
+                            d.kind === 'videoinput' && 
+                            (d.label.toLowerCase().includes('back') || 
+                             d.label.toLowerCase().includes('rear') || 
+                             d.label.toLowerCase().includes('背面'))
+                         );
+                         if (backCamera) {
+                             stream = await navigator.mediaDevices.getUserMedia({
+                                video: { deviceId: { exact: backCamera.deviceId } },
+                                audio: false
+                             });
+                         } else {
+                             throw new Error("Back camera not found");
+                         }
+                    }
                 }
-            } catch (e) {
-                // Final fallback
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            }
+             }
+        } else {
+            // User (front) camera
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                  facingMode: 'user',
+                  width: { ideal: 1920 },
+                  height: { ideal: 1080 }
+                },
+                audio: false
+              });
+        }
+      } catch (err) {
+        console.log("All specific attempts failed, falling back to any video");
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (finalErr) {
+            throw finalErr;
         }
       }
       
@@ -242,6 +268,10 @@ export default function ScanPage() {
   const retakePhoto = () => {
     setCapturedImage(null);
     setIsImageConfirmed(false);
+    // Reset to environment (rear) camera when retaking
+    if (facingMode !== 'environment') {
+        setFacingMode('environment');
+    }
   };
 
   // Handle switching modes and auto-starting camera
