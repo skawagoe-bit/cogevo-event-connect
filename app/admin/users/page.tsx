@@ -49,6 +49,7 @@ export default function UsersPage() {
                 alert(result.error);
             }
         } catch (e) {
+            console.error(e);
             alert("エラーが発生しました");
         } finally {
             setIsInviting(false);
@@ -65,6 +66,7 @@ export default function UsersPage() {
                 alert(result.error);
             }
         } catch (e) {
+            console.error(e);
             alert("エラーが発生しました");
         }
     };

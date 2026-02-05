@@ -49,9 +49,10 @@ export async function updateProfile(formData: FormData) {
     if (error) throw error
 
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update profile error:', error)
-    return { success: false, error: error.message }
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg }
   }
 }
 
@@ -67,15 +68,16 @@ export async function getProfile() {
 
     const { data, error } = await supabase
       .from('users')
-      .select('sansan_url, full_name, department')
+      .select('sansan_url, full_name, department, email')
       .eq('clerk_user_id', userId)
       .single()
 
     if (error) throw error
 
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get profile error:', error)
-    return { success: false, error: error.message }
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg }
   }
 }

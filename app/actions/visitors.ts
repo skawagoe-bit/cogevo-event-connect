@@ -99,11 +99,12 @@ export async function createVisitor(formData: FormData) {
 
     revalidatePath('/list')
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create visitor error:', error)
+    const msg = error instanceof Error ? error.message : String(error);
     return { 
       success: false, 
-      error: error.message || '訪問者の登録に失敗しました' 
+      error: msg || '訪問者の登録に失敗しました' 
     }
   }
 }
@@ -153,11 +154,12 @@ export async function updateVisitor(formData: FormData) {
 
     revalidatePath('/list')
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update visitor error:', error)
+    const msg = error instanceof Error ? error.message : String(error);
     return { 
       success: false, 
-      error: error.message || '訪問者の更新に失敗しました' 
+      error: msg || '訪問者の更新に失敗しました' 
     }
   }
 }
@@ -182,11 +184,12 @@ export async function getVisitors(eventId: string) {
     if (error) throw error
 
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get visitors error:', error)
+    const msg = error instanceof Error ? error.message : String(error);
     return { 
       success: false, 
-      error: error.message || '訪問者リストの取得に失敗しました' 
+      error: msg || '訪問者リストの取得に失敗しました' 
     }
   }
 }
@@ -207,14 +210,15 @@ export async function getVisitor(id: string) {
         .eq('id', id)
         .single()
   
-      if (error) throw error
-  
-      return { success: true, data }
-    } catch (error: any) {
-      console.error('Get visitor error:', error)
-      return { 
-        success: false, 
-        error: error.message || '訪問者データの取得に失敗しました' 
-      }
+    if (error) throw error
+
+    return { success: true, data }
+  } catch (error: unknown) {
+    console.error('Get visitor error:', error)
+    const msg = error instanceof Error ? error.message : String(error);
+    return { 
+      success: false, 
+      error: msg || '訪問者データの取得に失敗しました' 
     }
   }
+}
