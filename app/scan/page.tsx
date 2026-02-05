@@ -98,40 +98,40 @@ export default function ScanPage() {
       
       try {
         if (!isUser) {
-             // Strategy for Rear Camera:
-             // 1. Try "exact: environment" with resolution (Best for iOS)
-             // 2. Try "exact: environment" without resolution
-             // 3. Search device list for "back/rear" and use deviceId (Best for Android where exact facingMode fails)
-             // 4. Fallback to "ideal: environment"
+             // Strategy for Rear Camera (Optimized for iOS):
+             // 1. Try "exact: environment" WITHOUT resolution constraints. 
+             //    (iOS often fails OverconstrainedError if resolution doesn't match exactly with 'exact')
+             // 2. Try "exact: environment" WITH resolution.
+             // 3. Search device list (Android).
+             // 4. Fallback.
              
              try {
-                // Attempt 1
+                // Attempt 1: Pure Exact Environment (Best for iOS)
+                console.log("Attempting 1: Exact environment (no res)");
                 stream = await navigator.mediaDevices.getUserMedia({
-                  video: { 
-                    facingMode: { exact: 'environment' },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                  },
+                  video: { facingMode: { exact: 'environment' } },
                   audio: false
                 });
              } catch (e1) {
                 console.log("1. Exact environment failed", e1);
                 
                 try {
-                    // Attempt 2
+                    // Attempt 2: Exact environment with ideal resolution
+                    console.log("Attempting 2: Exact environment (with res)");
                     stream = await navigator.mediaDevices.getUserMedia({
-                      video: { facingMode: { exact: 'environment' } },
+                      video: { 
+                        facingMode: { exact: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                      },
                       audio: false
                     });
                 } catch (e2) {
-                    console.log("2. Exact environment no-res failed", e2);
+                    console.log("2. Exact environment with res failed", e2);
                     
                     // Attempt 3: Enumerate devices
                     try {
-                         // We need permission to see labels, but we might not have it yet.
-                         // However, if we failed above, we might have triggered permission prompt?
-                         // Sometimes we need to get *any* stream first to see labels.
-                         // But let's try enumerating first.
+                         console.log("Attempting 3: Device enumeration");
                          const devices = await navigator.mediaDevices.enumerateDevices();
                          const backCamera = devices.find(d => 
                             d.kind === 'videoinput' && 
@@ -142,7 +142,7 @@ export default function ScanPage() {
                          );
                          
                          if (backCamera) {
-                             console.log("Found back camera by label:", backCamera.label);
+                             console.log("Found back camera:", backCamera.label);
                              stream = await navigator.mediaDevices.getUserMedia({
                                 video: { deviceId: { exact: backCamera.deviceId } },
                                 audio: false
@@ -154,11 +154,13 @@ export default function ScanPage() {
                         console.log("3. Device ID selection failed", e3);
                         
                         // Attempt 4: Ideal environment
-                        // This often defaults to front camera on some devices if they don't support 'environment'
+                        console.log("Attempting 4: Ideal environment");
                         stream = await navigator.mediaDevices.getUserMedia({
                           video: { 
                             facingMode: 'environment',
-                            width: { ideal: 1920 },
+                            // On iOS, providing ideal resolution with ideal facingMode 
+                            // sometimes helps it pick the "better" (rear) camera
+                            width: { ideal: 1920 }, 
                             height: { ideal: 1080 }
                           },
                           audio: false
