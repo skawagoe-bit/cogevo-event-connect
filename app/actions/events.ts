@@ -100,7 +100,10 @@ export async function createEvent(formData: FormData) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+    }
 
     revalidatePath('/preset')
     revalidatePath('/admin/events')
