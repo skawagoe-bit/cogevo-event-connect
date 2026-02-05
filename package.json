@@ -7,8 +7,7 @@
     "restart": "powershell -ExecutionPolicy Bypass -File ./scripts/restart-dev.ps1",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "postinstall": "npm install --force"
+    "lint": "eslint"
   },
   "dependencies": {
     "@clerk/backend": "^1.2.1",
