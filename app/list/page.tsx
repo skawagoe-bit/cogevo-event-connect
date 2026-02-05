@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Clock, Send, Search, X, Activity, Square, CheckSquare } from "lucide-react";
+import { ArrowLeft, Check, Clock, Send, Search, X, Activity, Square, CheckSquare, CloudUpload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -26,13 +26,13 @@ export default function ListPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Selection state
+  // Selection state for unsent/sansan items
   const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
   
-  // Sansan Modal
-  const [isSansanModalOpen, setIsSansanModalOpen] = useState(false);
-  const [isRegisteringSansan, setIsRegisteringSansan] = useState(false);
-  const [sansanResults, setSansanResults] = useState<{success: number, failed: number, errors: string[]} | null>(null);
+  // Sansan processing state
+  const [isProcessingSansan, setIsProcessingSansan] = useState(false);
+  const [showSansanConfirm, setShowSansanConfirm] = useState(false);
+  const [sansanCheckResult, setSansanCheckResult] = useState<{success: boolean, message: string, missing: string[], existing: string[]} | null>(null);
 
   // Initial data fetch
   useEffect(() => {
@@ -62,9 +62,7 @@ export default function ListPage() {
             setActiveTab('unsent');
         }
         
-        // Initialize selection (select all eligible items for current tab)
-        // We will handle this in useEffect[activeTab] to be dynamic
-        // But for initial load, if we default to unsent/pending, we can set it.
+        // Initialize selection (default logic depends on tab, will be handled by effect or manual switch)
       } else {
         console.error("Fetch visitors error:", result.error);
       }
@@ -74,8 +72,9 @@ export default function ListPage() {
     fetchVisitors();
   }, [eventId, router]);
 
-  // Update selection when tab changes
+  // Handle tab change to reset/init selection
   useEffect(() => {
+    setSelectedVisitorIds([]);
     if (activeTab === 'unsent') {
         const ids = visitors
             .filter(v => !v.is_sent && v.process_status !== 'pending_entry')
@@ -83,11 +82,9 @@ export default function ListPage() {
         setSelectedVisitorIds(ids);
     } else if (activeTab === 'sansan') {
         const ids = visitors
-            .filter(v => v.process_status !== 'pending_entry' && (!v.sync_status || v.sync_status === 'pending' || v.sync_status === 'error'))
+            .filter(v => !v.sansan_registered_at && v.process_status !== 'pending_entry')
             .map(v => v.id);
         setSelectedVisitorIds(ids);
-    } else {
-        setSelectedVisitorIds([]);
     }
   }, [activeTab, visitors]);
 
@@ -100,13 +97,6 @@ export default function ListPage() {
     (payload) => {
       if (payload.eventType === 'INSERT') {
         setVisitors((prev) => [payload.new, ...prev]);
-        // Add new visitor to selection if matches current tab
-        if (activeTab === 'unsent' && !payload.new.is_sent && payload.new.process_status !== 'pending_entry') {
-            setSelectedVisitorIds(prev => [...prev, payload.new.id]);
-        }
-        if (activeTab === 'sansan' && payload.new.process_status !== 'pending_entry' && (!payload.new.sync_status || payload.new.sync_status === 'pending')) {
-            setSelectedVisitorIds(prev => [...prev, payload.new.id]);
-        }
       } else if (payload.eventType === 'UPDATE') {
         setVisitors((prev) => 
           prev.map((v) => (v.id === payload.new.id ? payload.new : v))
@@ -127,9 +117,8 @@ export default function ListPage() {
         if (v.process_status !== 'pending_entry') return false;
     } else if (activeTab === 'sansan') {
         if (v.process_status === 'pending_entry') return false;
-        // Show unsynced or error items. Also show synced? Usually we only want to show unsynced.
-        // User asked for "Sansanへの名刺登録のページ" so likely Unregistered items.
-        if (v.sync_status === 'synced') return false;
+        // Show only not yet registered to Sansan
+        if (v.sansan_registered_at) return false;
     } else {
         if (v.process_status === 'pending_entry') return false;
         if (activeTab === 'unsent' && v.is_sent) return false;
@@ -154,17 +143,13 @@ export default function ListPage() {
   const unsentCount = visitors.filter(v => !v.is_sent && v.process_status !== 'pending_entry').length;
   const sentCount = visitors.filter(v => v.is_sent && v.process_status !== 'pending_entry').length;
   const pendingCount = visitors.filter(v => v.process_status === 'pending_entry').length;
-  // Count for Sansan tab (unregistered)
-  const sansanCount = visitors.filter(v => v.process_status !== 'pending_entry' && v.sync_status !== 'synced').length;
+  const sansanCount = visitors.filter(v => !v.sansan_registered_at && v.process_status !== 'pending_entry').length;
 
   const handleVisitorClick = (visitor: Visitor) => {
     if (activeTab === 'pending') {
         router.push(`/visitor/${visitor.id}/edit`);
-    } else {
-        // Toggle selection for unsent/sansan items
-        if (activeTab === 'unsent' || activeTab === 'sansan') {
-            toggleSelection(visitor.id);
-        }
+    } else if (activeTab === 'unsent' || activeTab === 'sansan') {
+        toggleSelection(visitor.id);
     }
   };
 
@@ -182,55 +167,59 @@ export default function ListPage() {
         alert("送信対象が選択されていません");
         return;
     }
-    
     const ids = targets.map(v => v.id).join(',');
     router.push(`/send?ids=${ids}`);
   };
 
-  const handleOpenSansanModal = async () => {
+  const handleSansanCheck = async () => {
     const targets = filteredVisitors.filter(v => selectedVisitorIds.includes(v.id));
     if (targets.length === 0) {
         alert("登録対象が選択されていません");
         return;
     }
     
-    // Check tags (mock)
-    // Collect all attributes from selection
-    const tags = Array.from(new Set(targets.map(v => v.attribute).filter(Boolean)));
-    const checkResult = await checkSansanTags(tags as string[]);
-    
-    // Even if check fails, we might show modal with warning
-    setIsSansanModalOpen(true);
-    setSansanResults(null);
+    setIsProcessingSansan(true);
+    try {
+        // Collect all unique tags from selected visitors
+        const allTags = new Set<string>();
+        targets.forEach(v => {
+            if (v.attribute) allTags.add(v.attribute);
+            if (v.segment) allTags.add(v.segment);
+        });
+        
+        const checkResult = await checkSansanTags(Array.from(allTags));
+        setSansanCheckResult(checkResult);
+        setShowSansanConfirm(true);
+        
+    } catch (e: any) {
+        alert("確認中にエラーが発生しました: " + e.message);
+    } finally {
+        setIsProcessingSansan(false);
+    }
   };
 
-  const handleRegisterSansan = async () => {
-    const targets = filteredVisitors.filter(v => selectedVisitorIds.includes(v.id));
-    setIsRegisteringSansan(true);
-    
+  const handleSansanRegister = async () => {
+    setIsProcessingSansan(true);
     try {
-        const result = await registerVisitorsToSansan(targets.map(v => v.id));
-        if (result.success && result.results) {
-            setSansanResults({
-                success: result.results.success.length,
-                failed: result.results.failed.length,
-                errors: result.results.errors
-            });
-            
-            // Refresh list handled by realtime or re-fetch if needed
-            // But we have local state update via realtime subscription usually
+        const result = await registerVisitorsToSansan(selectedVisitorIds);
+        if (result.success) {
+            alert(`Sansanへの登録が完了しました\n成功: ${result.results?.success.length}件\n失敗: ${result.results?.failed.length}件`);
+            setShowSansanConfirm(false);
+            // Refresh logic handled by realtime or fetch
+            const fetchAgain = await getVisitors(eventId!);
+            if (fetchAgain.success) setVisitors(fetchAgain.data as Visitor[] || []);
         } else {
-            alert("登録処理に失敗しました: " + result.error);
+            alert("登録に失敗しました: " + result.error);
         }
     } catch (e: any) {
         alert("エラーが発生しました: " + e.message);
     } finally {
-        setIsRegisteringSansan(false);
+        setIsProcessingSansan(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 relative">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
@@ -265,7 +254,7 @@ export default function ListPage() {
           <button
             onClick={() => setActiveTab('pending')}
             className={cn(
-              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap px-4",
               activeTab === 'pending' 
                 ? "border-yellow-500 text-yellow-600" 
                 : "border-transparent text-gray-400 hover:text-gray-600"
@@ -277,27 +266,10 @@ export default function ListPage() {
               {pendingCount}
             </span>
           </button>
-          
-          {/* Sansan Tab */}
-          <button
-            onClick={() => setActiveTab('sansan')}
-            className={cn(
-              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
-              activeTab === 'sansan' 
-                ? "border-blue-500 text-blue-600" 
-                : "border-transparent text-gray-400 hover:text-gray-600"
-            )}
-          >
-            <span className="font-bold">Sansan</span>
-            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
-              {sansanCount}
-            </span>
-          </button>
-
           <button
             onClick={() => setActiveTab('unsent')}
             className={cn(
-              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap px-4",
               activeTab === 'unsent' 
                 ? "border-primary text-primary" 
                 : "border-transparent text-gray-400 hover:text-gray-600"
@@ -312,7 +284,7 @@ export default function ListPage() {
           <button
             onClick={() => setActiveTab('sent')}
             className={cn(
-              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap px-4",
               activeTab === 'sent' 
                 ? "border-green-500 text-green-600" 
                 : "border-transparent text-gray-400 hover:text-gray-600"
@@ -322,6 +294,21 @@ export default function ListPage() {
             {dict.list.tab_sent}
             <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
               {sentCount}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('sansan')}
+            className={cn(
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap px-4",
+              activeTab === 'sansan' 
+                ? "border-blue-500 text-blue-600" 
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <CloudUpload className="w-4 h-4" />
+            Sansan
+            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
+              {sansanCount}
             </span>
           </button>
         </div>
@@ -369,9 +356,10 @@ export default function ListPage() {
             </div>
         ) : (
             <div className="space-y-3">
-                {activeTab === 'unsent' && (
-                    <div className="text-xs text-gray-500 font-bold px-1">
-                        {filteredVisitors.filter(v => selectedVisitorIds.includes(v.id)).length} / {filteredVisitors.length} 件選択中
+                {(activeTab === 'unsent' || activeTab === 'sansan') && (
+                    <div className="text-xs text-gray-500 font-bold px-1 flex justify-between items-center">
+                        <span>{filteredVisitors.filter(v => selectedVisitorIds.includes(v.id)).length} / {filteredVisitors.length} 件選択中</span>
+                        <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedVisitorIds(filteredVisitors.map(v => v.id))}>すべて選択</Button>
                     </div>
                 )}
                 {filteredVisitors.map((visitor) => (
@@ -379,16 +367,16 @@ export default function ListPage() {
                         key={visitor.id} 
                         className={cn(
                             "bg-white rounded-xl border shadow-sm p-4 active:scale-[0.99] transition-transform",
-                            activeTab === 'unsent' && selectedVisitorIds.includes(visitor.id) ? "ring-2 ring-primary ring-offset-1 border-primary/50" : "border-gray-100"
+                            (activeTab === 'unsent' || activeTab === 'sansan') && selectedVisitorIds.includes(visitor.id) ? "ring-2 ring-primary ring-offset-1 border-primary/50" : "border-gray-100"
                         )}
                         onClick={() => handleVisitorClick(visitor)}
                     >
                         <div className="flex items-start gap-3">
-                            {/* Checkbox for Unsent / Sansan */}
+                            {/* Checkbox for Unsent/Sansan */}
                             {(activeTab === 'unsent' || activeTab === 'sansan') && (
                                 <div className="mt-1" onClick={(e) => { e.stopPropagation(); toggleSelection(visitor.id); }}>
                                     {selectedVisitorIds.includes(visitor.id) ? (
-                                        <CheckSquare className={cn("w-5 h-5", activeTab === 'sansan' ? "text-blue-600" : "text-primary")} />
+                                        <CheckSquare className="w-5 h-5 text-primary" />
                                     ) : (
                                         <Square className="w-5 h-5 text-gray-300" />
                                     )}
@@ -436,11 +424,6 @@ export default function ListPage() {
                                             {t(visitor.segment)}
                                         </span>
                                     )}
-                                    {visitor.sync_status === 'error' && activeTab === 'sansan' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
-                                            エラー
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -463,6 +446,74 @@ export default function ListPage() {
                 </Button>
             </div>
           </div>
+      )}
+
+      {/* Footer Action for Sansan */}
+      {activeTab === 'sansan' && selectedVisitorIds.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+            <div className="max-w-md mx-auto">
+                <Button 
+                    className="w-full h-12 text-lg font-bold shadow-lg animate-in slide-in-from-bottom-4 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleSansanCheck}
+                    disabled={isProcessingSansan}
+                >
+                    {isProcessingSansan ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CloudUpload className="w-5 h-5 mr-2" />}
+                    Sansanに登録 ({filteredVisitors.filter(v => selectedVisitorIds.includes(v.id)).length}件)
+                </Button>
+            </div>
+          </div>
+      )}
+
+      {/* Sansan Confirmation Modal */}
+      {showSansanConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+                <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-bold">Sansan連携確認</h3>
+                    <Button variant="ghost" size="icon" onClick={() => setShowSansanConfirm(false)}><X className="w-5 h-5" /></Button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="text-center">
+                        <p className="text-sm font-bold text-gray-700 mb-2">以下の内容で登録します</p>
+                        <div className="bg-gray-100 p-3 rounded-lg text-sm mb-4">
+                            <div className="flex justify-between mb-1">
+                                <span>登録件数:</span>
+                                <span className="font-bold">{selectedVisitorIds.length}件</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>タグ情報:</span>
+                                <span className="font-bold text-green-600">連携あり</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                        <h4 className="text-xs font-bold text-gray-500 mb-2">タグ設定チェック結果</h4>
+                        {sansanCheckResult?.success ? (
+                            <div className="space-y-2">
+                                <p className="text-sm text-green-600 font-bold flex items-center">
+                                    <Check className="w-4 h-4 mr-1" /> {sansanCheckResult.message}
+                                </p>
+                                {sansanCheckResult.missing && sansanCheckResult.missing.length > 0 && (
+                                    <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800">
+                                        <p className="font-bold">※以下のタグはSansanに未登録です</p>
+                                        <p>{sansanCheckResult.missing.join(', ')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-red-500">チェックに失敗しました</p>
+                        )}
+                    </div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={() => setShowSansanConfirm(false)}>キャンセル</Button>
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSansanRegister} disabled={isProcessingSansan}>
+                        {isProcessingSansan ? "登録中..." : "登録を実行"}
+                    </Button>
+                </div>
+            </div>
+        </div>
       )}
     </div>
   );
