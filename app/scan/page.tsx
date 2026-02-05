@@ -90,29 +90,61 @@ export default function ScanPage() {
         throw new Error("カメラAPIがこのブラウザでサポートされていません");
       }
 
-      let stream: MediaStream;
+      let stream: MediaStream | null = null;
+      const isUser = facingMode === 'user';
+      
       try {
+        // First try: Exact facing mode (prioritize resolution)
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
+            facingMode: isUser ? 'user' : { exact: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
           },
           audio: false
         });
       } catch (err) {
-        console.log("Exact facing mode failed, falling back to ideal/default");
+        console.log("Exact facing mode failed, falling back to ideal");
         try {
+            // Second try: Ideal facing mode
             stream = await navigator.mediaDevices.getUserMedia({
             video: { 
-                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                facingMode: isUser ? 'user' : 'environment',
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
             },
             audio: false
             });
         } catch (fallbackErr) {
-            // Last resort: any video
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            console.log("Ideal facing mode failed, trying device enumeration");
+            // Third try: Enumerate devices to find a back camera explicitly
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const backCamera = devices.find(d => 
+                    d.kind === 'videoinput' && 
+                    (d.label.toLowerCase().includes('back') || 
+                     d.label.toLowerCase().includes('rear') || 
+                     d.label.toLowerCase().includes('environment'))
+                );
+                
+                if (backCamera && !isUser) {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: backCamera.deviceId } },
+                        audio: false
+                    });
+                } else {
+                    // Last resort: any video
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                }
+            } catch (e) {
+                // Final fallback
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
         }
       }
       
+      if (!stream) throw new Error("カメラストリームの取得に失敗しました");
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
