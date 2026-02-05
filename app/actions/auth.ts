@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 
@@ -8,26 +8,28 @@ export async function agreeToTerms() {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
+  const clerkUser = await currentUser()
+  if (!clerkUser) throw new Error('User info not found')
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Clerk ID -> Supabase ID
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id')
-    .eq('clerk_user_id', userId)
-    .single()
-
-  if (userError || !user) throw new Error('User not found')
-
+  // Upsert user to ensure record exists, then update terms
   const { error } = await supabase
     .from('users')
-    .update({ terms_agreed_at: new Date().toISOString() })
-    .eq('id', user.id)
+    .upsert({ 
+        clerk_user_id: userId,
+        email: clerkUser.emailAddresses[0].emailAddress,
+        full_name: `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null,
+        terms_agreed_at: new Date().toISOString()
+    }, { onConflict: 'clerk_user_id' })
 
-  if (error) throw error
+  if (error) {
+    console.error("Failed to agree to terms:", error);
+    throw error;
+  }
 
   redirect('/')
 }
