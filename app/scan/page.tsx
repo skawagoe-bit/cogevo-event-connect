@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X, Check } from "lucide-react";
+import { Camera, Mic, Image as ImageIcon, List, Gift, Settings, FileAudio, QrCode, RefreshCcw, Loader2, X, Check, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/app/providers";
@@ -25,8 +25,15 @@ export default function ScanPage() {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   
-  // Registration Date
-  const [visitDate, setVisitDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Registration Date (JST)
+  const [visitDate, setVisitDate] = useState<string>(() => {
+    const d = new Date();
+    const jst = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+    const y = jst.getFullYear();
+    const m = String(jst.getMonth() + 1).padStart(2, '0');
+    const da = String(jst.getDate()).padStart(2, '0');
+    return `${y}-${m}-${da}`;
+  });
 
   // Check if eventId is set
   useEffect(() => {
@@ -811,12 +818,14 @@ export default function ScanPage() {
                <div className="space-y-2">
                  <div className="flex gap-2">
                     <div className="w-1/3">
-                        <label className="text-[10px] text-gray-500 font-bold block mb-1">登録日</label>
+                        <label className="text-[10px] text-gray-500 font-bold mb-1 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> 登録日
+                        </label>
                         <input 
                             type="date"
                             value={visitDate}
                             onChange={(e) => setVisitDate(e.target.value)}
-                            className="w-full p-2 bg-white border border-blue-200 rounded text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="w-full p-2 bg-white border border-blue-200 rounded text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none font-bold"
                         />
                     </div>
                     <div className="w-2/3">
