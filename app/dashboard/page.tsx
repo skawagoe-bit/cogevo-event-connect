@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, TrendingUp, Users, Trophy, Activity, Target } from "lucide-react";
+import { ArrowLeft, TrendingUp, Users, Trophy, Activity, Target, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
 
@@ -19,27 +19,26 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-gray-50">
-      <header className="bg-white border-b p-4 flex items-center shadow-sm sticky top-0 z-10 shrink-0">
-        <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
-          <ArrowLeft className="w-6 h-6 text-gray-600" />
+      <header className="bg-white border-b p-4 flex items-center justify-between shadow-sm sticky top-0 z-10 shrink-0">
+        <div className="flex items-center">
+            <button onClick={() => router.back()} className="mr-4 p-1 hover:bg-gray-100 rounded-full">
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </button>
+            <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary" />
+            {dict.dashboard.title}
+            </h1>
+        </div>
+        <button 
+            onClick={() => router.push('/admin')}
+            className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full text-xs font-bold transition-colors"
+        >
+            <Settings className="w-3.5 h-3.5" />
+            管理画面
         </button>
-        <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-primary" />
-          {dict.dashboard.title}
-        </h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
-        {/* Admin Link (Temporary: should be role based, but currently accessible via middleware logic) */}
-        <div className="flex justify-end">
-            <button 
-                onClick={() => router.push('/admin')}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600 underline"
-            >
-                管理画面へ
-            </button>
-        </div>
         
         {/* Total Stats */}
         <div className="grid grid-cols-2 gap-3">
