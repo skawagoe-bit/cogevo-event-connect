@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import type { Database } from "@/lib/supabase/types";
 import { getVisitors } from "@/app/actions/visitors";
+import { registerVisitorsToSansan, checkSansanTags } from "@/app/actions/sansan";
 import { useTranslation } from "@/lib/i18n/context";
 
 type Visitor = Database['public']['Tables']['visitors']['Row'];
@@ -18,15 +19,20 @@ export default function ListPage() {
   const router = useRouter();
   const { dict, t } = useTranslation();
   const { eventId, attributes } = useSettings();
-  const [activeTab, setActiveTab] = useState<'unsent' | 'sent' | 'pending'>('pending');
+  const [activeTab, setActiveTab] = useState<'unsent' | 'sent' | 'pending' | 'sansan'>('pending');
   const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Selection state for unsent items
+  // Selection state
   const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
+  
+  // Sansan Modal
+  const [isSansanModalOpen, setIsSansanModalOpen] = useState(false);
+  const [isRegisteringSansan, setIsRegisteringSansan] = useState(false);
+  const [sansanResults, setSansanResults] = useState<{success: number, failed: number, errors: string[]} | null>(null);
 
   // Initial data fetch
   useEffect(() => {
@@ -56,12 +62,9 @@ export default function ListPage() {
             setActiveTab('unsent');
         }
         
-        // Initialize selection (all unsent are selected by default)
-        const unsentIds = fetchedVisitors
-            .filter(v => !v.is_sent && v.process_status !== 'pending_entry')
-            .map(v => v.id);
-        setSelectedVisitorIds(unsentIds);
-
+        // Initialize selection (select all eligible items for current tab)
+        // We will handle this in useEffect[activeTab] to be dynamic
+        // But for initial load, if we default to unsent/pending, we can set it.
       } else {
         console.error("Fetch visitors error:", result.error);
       }
@@ -71,13 +74,22 @@ export default function ListPage() {
     fetchVisitors();
   }, [eventId, router]);
 
-  // Update selection when visitors change (e.g. realtime update or fetch)
+  // Update selection when tab changes
   useEffect(() => {
-    // Only add new items to selection, don't re-select unchecked ones if already loaded
-    // This is tricky. Simple approach: when data loads initially (isLoading changes), set selection.
-    // For realtime, we might want to append.
-    // For now, let's keep it simple: initial load sets all. Realtime adds new ones.
-  }, [visitors]);
+    if (activeTab === 'unsent') {
+        const ids = visitors
+            .filter(v => !v.is_sent && v.process_status !== 'pending_entry')
+            .map(v => v.id);
+        setSelectedVisitorIds(ids);
+    } else if (activeTab === 'sansan') {
+        const ids = visitors
+            .filter(v => v.process_status !== 'pending_entry' && (!v.sync_status || v.sync_status === 'pending' || v.sync_status === 'error'))
+            .map(v => v.id);
+        setSelectedVisitorIds(ids);
+    } else {
+        setSelectedVisitorIds([]);
+    }
+  }, [activeTab, visitors]);
 
   // Realtime subscription
   useRealtimeSubscription<Visitor>(
@@ -88,8 +100,11 @@ export default function ListPage() {
     (payload) => {
       if (payload.eventType === 'INSERT') {
         setVisitors((prev) => [payload.new, ...prev]);
-        // Add new unsent visitor to selection by default
-        if (!payload.new.is_sent && payload.new.process_status !== 'pending_entry') {
+        // Add new visitor to selection if matches current tab
+        if (activeTab === 'unsent' && !payload.new.is_sent && payload.new.process_status !== 'pending_entry') {
+            setSelectedVisitorIds(prev => [...prev, payload.new.id]);
+        }
+        if (activeTab === 'sansan' && payload.new.process_status !== 'pending_entry' && (!payload.new.sync_status || payload.new.sync_status === 'pending')) {
             setSelectedVisitorIds(prev => [...prev, payload.new.id]);
         }
       } else if (payload.eventType === 'UPDATE') {
@@ -110,6 +125,11 @@ export default function ListPage() {
     // Tab filter
     if (activeTab === 'pending') {
         if (v.process_status !== 'pending_entry') return false;
+    } else if (activeTab === 'sansan') {
+        if (v.process_status === 'pending_entry') return false;
+        // Show unsynced or error items. Also show synced? Usually we only want to show unsynced.
+        // User asked for "Sansanへの名刺登録のページ" so likely Unregistered items.
+        if (v.sync_status === 'synced') return false;
     } else {
         if (v.process_status === 'pending_entry') return false;
         if (activeTab === 'unsent' && v.is_sent) return false;
@@ -134,13 +154,15 @@ export default function ListPage() {
   const unsentCount = visitors.filter(v => !v.is_sent && v.process_status !== 'pending_entry').length;
   const sentCount = visitors.filter(v => v.is_sent && v.process_status !== 'pending_entry').length;
   const pendingCount = visitors.filter(v => v.process_status === 'pending_entry').length;
+  // Count for Sansan tab (unregistered)
+  const sansanCount = visitors.filter(v => v.process_status !== 'pending_entry' && v.sync_status !== 'synced').length;
 
   const handleVisitorClick = (visitor: Visitor) => {
     if (activeTab === 'pending') {
         router.push(`/visitor/${visitor.id}/edit`);
     } else {
-        // Toggle selection for unsent items (only if clicking the row, not specific actions)
-        if (activeTab === 'unsent') {
+        // Toggle selection for unsent/sansan items
+        if (activeTab === 'unsent' || activeTab === 'sansan') {
             toggleSelection(visitor.id);
         }
     }
@@ -161,10 +183,50 @@ export default function ListPage() {
         return;
     }
     
-    // In a real app, this would go to a bulk send confirmation page or API
-    // Passing IDs via URL or State. For now, let's just log or alert.
     const ids = targets.map(v => v.id).join(',');
     router.push(`/send?ids=${ids}`);
+  };
+
+  const handleOpenSansanModal = async () => {
+    const targets = filteredVisitors.filter(v => selectedVisitorIds.includes(v.id));
+    if (targets.length === 0) {
+        alert("登録対象が選択されていません");
+        return;
+    }
+    
+    // Check tags (mock)
+    // Collect all attributes from selection
+    const tags = Array.from(new Set(targets.map(v => v.attribute).filter(Boolean)));
+    const checkResult = await checkSansanTags(tags as string[]);
+    
+    // Even if check fails, we might show modal with warning
+    setIsSansanModalOpen(true);
+    setSansanResults(null);
+  };
+
+  const handleRegisterSansan = async () => {
+    const targets = filteredVisitors.filter(v => selectedVisitorIds.includes(v.id));
+    setIsRegisteringSansan(true);
+    
+    try {
+        const result = await registerVisitorsToSansan(targets.map(v => v.id));
+        if (result.success && result.results) {
+            setSansanResults({
+                success: result.results.success.length,
+                failed: result.results.failed.length,
+                errors: result.results.errors
+            });
+            
+            // Refresh list handled by realtime or re-fetch if needed
+            // But we have local state update via realtime subscription usually
+        } else {
+            alert("登録処理に失敗しました: " + result.error);
+        }
+    } catch (e: any) {
+        alert("エラーが発生しました: " + e.message);
+    } finally {
+        setIsRegisteringSansan(false);
+    }
   };
 
   return (
@@ -215,6 +277,23 @@ export default function ListPage() {
               {pendingCount}
             </span>
           </button>
+          
+          {/* Sansan Tab */}
+          <button
+            onClick={() => setActiveTab('sansan')}
+            className={cn(
+              "flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 whitespace-nowrap",
+              activeTab === 'sansan' 
+                ? "border-blue-500 text-blue-600" 
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <span className="font-bold">Sansan</span>
+            <span className="ml-1 bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full">
+              {sansanCount}
+            </span>
+          </button>
+
           <button
             onClick={() => setActiveTab('unsent')}
             className={cn(
@@ -305,11 +384,11 @@ export default function ListPage() {
                         onClick={() => handleVisitorClick(visitor)}
                     >
                         <div className="flex items-start gap-3">
-                            {/* Checkbox for Unsent */}
-                            {activeTab === 'unsent' && (
+                            {/* Checkbox for Unsent / Sansan */}
+                            {(activeTab === 'unsent' || activeTab === 'sansan') && (
                                 <div className="mt-1" onClick={(e) => { e.stopPropagation(); toggleSelection(visitor.id); }}>
                                     {selectedVisitorIds.includes(visitor.id) ? (
-                                        <CheckSquare className="w-5 h-5 text-primary" />
+                                        <CheckSquare className={cn("w-5 h-5", activeTab === 'sansan' ? "text-blue-600" : "text-primary")} />
                                     ) : (
                                         <Square className="w-5 h-5 text-gray-300" />
                                     )}
@@ -355,6 +434,11 @@ export default function ListPage() {
                                     {visitor.segment && (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
                                             {t(visitor.segment)}
+                                        </span>
+                                    )}
+                                    {visitor.sync_status === 'error' && activeTab === 'sansan' && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                                            エラー
                                         </span>
                                     )}
                                 </div>

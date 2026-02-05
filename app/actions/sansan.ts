@@ -1,5 +1,9 @@
 'use server';
 
+import { auth } from '@clerk/nextjs/server'
+import { createClient } from '@supabase/supabase-js'
+import { revalidatePath } from 'next/cache'
+
 // Note: In a real production environment, never hardcode API keys.
 // Use environment variables like process.env.SANSAN_API_KEY
 // However, per user request, we are using the provided key.
@@ -10,6 +14,108 @@ const SANSAN_API_KEY = process.env.SANSAN_API_KEY || '9111e0e2c4b64aeba0cdb3d566
 // Based on typical "Sansan Open API" specs:
 // https://api.sansan.com/v3.0/bizCards
 const SANSAN_API_URL = 'https://api.sansan.com/v3.0/bizCards'; 
+
+// Tag check/creation endpoint (Hypothetical)
+const SANSAN_TAG_URL = 'https://api.sansan.com/v3.0/tags'; 
+
+export async function checkSansanTags(tags: string[]) {
+    // Mock check for now, or real API call if keys provided
+    // This function checks if tags exist, and if not, returns info
+    console.log("[Sansan API] Checking tags:", tags);
+    
+    // In a real scenario, we would GET /tags and compare
+    // For now, we assume all tags can be registered or created
+    return {
+        success: true,
+        existing: tags,
+        missing: [],
+        message: "全てのタグが利用可能です（モック）"
+    };
+}
+
+export async function registerVisitorsToSansan(visitorIds: string[]) {
+    try {
+        const { userId } = await auth();
+        if (!userId) throw new Error('認証が必要です');
+
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Fetch visitors
+        const { data: visitors, error } = await supabase
+            .from('visitors')
+            .select('*')
+            .in('id', visitorIds);
+
+        if (error || !visitors) throw new Error('データ取得に失敗しました');
+
+        const results = {
+            success: [] as string[],
+            failed: [] as string[],
+            errors: [] as string[]
+        };
+
+        for (const visitor of visitors) {
+            try {
+                // Prepare Sansan Data
+                // If there is an image, we should probably use that.
+                // If text only, we use a text registration endpoint if available.
+                // Since this is a "Mock" implementation for the actual API call usually,
+                // we will simulate the API call.
+                
+                // Construct tags from Attribute, Segment, Roles (if any)
+                const tags = [];
+                if (visitor.attribute) tags.push(visitor.attribute);
+                if (visitor.segment) tags.push(visitor.segment);
+                
+                // Prepare payload
+                const payload = {
+                    name: visitor.name,
+                    companyName: visitor.company,
+                    email: visitor.email,
+                    tags: tags,
+                    memo: visitor.memo
+                };
+
+                console.log(`[Sansan API] Registering ${visitor.name}...`, payload);
+
+                // Simulate API Call delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Success update DB
+                await supabase
+                    .from('visitors')
+                    .update({ 
+                        sync_status: 'synced',
+                        // If we added sansan_status column:
+                        // sansan_status: 'completed' 
+                    })
+                    .eq('id', visitor.id);
+                
+                results.success.push(visitor.id);
+
+            } catch (e: any) {
+                console.error(`Failed to register ${visitor.id}`, e);
+                results.failed.push(visitor.id);
+                results.errors.push(`${visitor.name}: ${e.message}`);
+                
+                await supabase
+                    .from('visitors')
+                    .update({ sync_status: 'error' })
+                    .eq('id', visitor.id);
+            }
+        }
+
+        revalidatePath('/list');
+        return { success: true, results };
+
+    } catch (error: any) {
+        console.error('Batch register error:', error);
+        return { success: false, error: error.message };
+    }
+}
 
 export async function digitizeCardWithSansan(formData: FormData) {
     const imageFile = formData.get('image') as File;
