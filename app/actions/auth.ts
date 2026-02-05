@@ -2,36 +2,40 @@
 
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import { redirect } from 'next/navigation'
 
 export async function agreeToTerms() {
-  const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
+  try {
+    const { userId } = await auth()
+    if (!userId) return { success: false, error: 'Unauthorized' }
 
-  const clerkUser = await currentUser()
-  if (!clerkUser) throw new Error('User info not found')
+    const clerkUser = await currentUser()
+    if (!clerkUser) return { success: false, error: 'User info not found' }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-  // Upsert user to ensure record exists, then update terms
-  const { error } = await supabase
-    .from('users')
-    .upsert({ 
-        clerk_user_id: userId,
-        email: clerkUser.emailAddresses[0].emailAddress,
-        full_name: `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null,
-        terms_agreed_at: new Date().toISOString()
-    }, { onConflict: 'clerk_user_id' })
+    // Upsert user to ensure record exists, then update terms
+    const { error } = await supabase
+        .from('users')
+        .upsert({ 
+            clerk_user_id: userId,
+            email: clerkUser.emailAddresses[0].emailAddress,
+            full_name: `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || null,
+            terms_agreed_at: new Date().toISOString()
+        }, { onConflict: 'clerk_user_id' })
 
-  if (error) {
-    console.error("Failed to agree to terms:", error);
-    throw new Error(`Failed to save agreement: ${error.message}`);
+    if (error) {
+        console.error("Failed to agree to terms:", error);
+        return { success: false, error: `Failed to save agreement: ${error.message}` }
+    }
+
+    return { success: true }
+  } catch (e: any) {
+    console.error("Unexpected error in agreeToTerms:", e);
+    return { success: false, error: e.message || 'Unknown error' }
   }
-
-  redirect('/')
 }
 
 export async function checkAccess() {

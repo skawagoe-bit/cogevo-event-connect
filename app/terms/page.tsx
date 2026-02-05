@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { agreeToTerms } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 
 export default function TermsPage() {
+  const router = useRouter();
   const [agreed, setAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -15,10 +17,15 @@ export default function TermsPage() {
     if (!agreed) return;
     setIsLoading(true);
     try {
-        await agreeToTerms();
+        const result = await agreeToTerms();
+        if (result.success) {
+            router.push('/');
+        } else {
+            alert(`処理に失敗しました: ${result.error}`);
+            setIsLoading(false);
+        }
     } catch (e: any) {
         console.error("Agreement error:", e);
-        // Display specific error message if available, or generic one
         const msg = e.message || "エラーが発生しました";
         alert(`処理に失敗しました: ${msg}`);
         setIsLoading(false);
