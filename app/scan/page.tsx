@@ -12,7 +12,7 @@ import { createVisitor } from "@/app/actions/visitors";
 import { getProfile } from "@/app/actions/profile";
 import { useTranslation } from "@/lib/i18n/context";
 import { digitizeCardWithSansan } from "@/app/actions/sansan";
-import { analyzeBusinessCard, transcribeAudio } from "@/app/actions/ai";
+import { analyzeBusinessCard } from "@/app/actions/ai";
 
 // Force dynamic rendering to prevent static generation issues with environment variables
 export const dynamic = 'force-dynamic';
@@ -44,7 +44,7 @@ export default function ScanPage() {
           router.push("/preset");
       }
     }
-  }, [eventId, router]);
+  }, [eventId, router, dict]);
 
   // OCR / Visitor Data State
   const [name, setName] = useState("");
@@ -55,13 +55,12 @@ export default function ScanPage() {
   // Voice Memo State
   const [memoText, setMemoText] = useState("");
   const [isListening, setIsListening] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isBadgeMode, setIsBadgeMode] = useState(false);
-  const [showBadgeConfirm, setShowBadgeConfirm] = useState(false);
   
   const [showQR, setShowQR] = useState(false);
   const [mySansanUrl, setMySansanUrl] = useState<string | null>(null);
@@ -210,10 +209,11 @@ export default function ScanPage() {
         };
       }
       setHasCameraPermission(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Camera error:", err);
       setHasCameraPermission(false);
-      setErrorMessage(err.toString() + " (Stack: " + (err.stack || "") + ")");
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setErrorMessage(errorMessage);
     }
   }, [facingMode]);
 
@@ -233,24 +233,6 @@ export default function ScanPage() {
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === "user" ? "environment" : "user");
-  };
-
-  const switchToBadgeMode = () => {
-    setIsBadgeMode(true);
-    setCapturedImage(null);
-    setIsImageConfirmed(false);
-    setShowBadgeConfirm(false);
-    setAudioBlob(null);
-    setMemoText("");
-  };
-
-  const switchToCardMode = () => {
-    setIsBadgeMode(false);
-    setCapturedImage(null);
-    setIsImageConfirmed(false);
-    setShowBadgeConfirm(false);
-    setAudioBlob(null);
-    setMemoText("");
   };
 
   const takePhoto = useCallback(() => {
@@ -285,9 +267,10 @@ export default function ScanPage() {
              navigator.vibrate(50);
           }
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Take photo error:", e);
-        alert("撮影に失敗しました: " + (e.message || "不明なエラー"));
+        const msg = e instanceof Error ? e.message : "不明なエラー";
+        alert("撮影に失敗しました: " + msg);
     }
   }, [isBadgeMode]);
 
@@ -310,8 +293,6 @@ export default function ScanPage() {
     
     setCapturedImage(null);
     setIsImageConfirmed(false);
-    setShowBadgeConfirm(false);
-    setAudioBlob(null);
     setMemoText("");
     
     // Only reset facingMode if not already in environment
@@ -350,7 +331,7 @@ export default function ScanPage() {
         } else {
              console.warn("Badge analysis failed:", aiResult.error);
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
     } finally {
         setIsAnalyzing(false);
@@ -379,8 +360,6 @@ export default function ScanPage() {
             };
 
             mediaRecorder.onstop = () => {
-              const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-              setAudioBlob(audioBlob);
               stream.getTracks().forEach(track => track.stop());
             };
 
@@ -402,6 +381,7 @@ export default function ScanPage() {
         setIsListening(false);
       }
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         alert("このブラウザは音声入力をサポートしていません");
@@ -413,6 +393,7 @@ export default function ScanPage() {
       recognition.continuous = true;
       recognition.interimResults = true;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
@@ -430,6 +411,7 @@ export default function ScanPage() {
         }
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error", event.error);
         setIsListening(false);
@@ -487,9 +469,10 @@ export default function ScanPage() {
                  alert(`読み取りに失敗しました。\nAIエラー: ${errorMessage}\nSansanエラー: ${sansanResult.error}`);
             }
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
-        alert("エラーが発生しました: " + e.message);
+        const msg = e instanceof Error ? e.message : "不明なエラー";
+        alert("エラーが発生しました: " + msg);
     } finally {
         setIsAnalyzing(false);
     }
@@ -570,9 +553,10 @@ export default function ScanPage() {
         console.error(result.error);
         alert("登録エラー: " + result.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration error:", err);
-      alert("登録処理中にエラーが発生しました: " + err.message);
+      const msg = err instanceof Error ? err.message : "不明なエラー";
+      alert("登録処理中にエラーが発生しました: " + msg);
     }
   };
 

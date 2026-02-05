@@ -145,7 +145,7 @@ export default function AdminEventsPage() {
                                 body: parsed.body || "" 
                             };
                         }
-                    } catch (e) {
+                    } catch {
                         console.warn(`Skipping invalid template for ${key}`, val);
                     }
                 } else if (typeof val === 'object' && val !== null) {
@@ -171,9 +171,10 @@ export default function AdminEventsPage() {
         } else {
           alert("保存に失敗しました: " + result.error);
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
-        alert("予期せぬエラーが発生しました: " + e.message);
+        const errorMessage = e instanceof Error ? e.message : "不明なエラー";
+        alert("予期せぬエラーが発生しました: " + errorMessage);
     } finally {
         setIsSaving(false);
     }
@@ -235,8 +236,9 @@ export default function AdminEventsPage() {
       } else {
         alert("生成に失敗しました: " + result.error);
       }
-    } catch (e: any) {
-      alert("エラーが発生しました: " + e.message);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "不明なエラー";
+      alert("エラーが発生しました: " + errorMessage);
     } finally {
       setIsGenerating(false);
     }

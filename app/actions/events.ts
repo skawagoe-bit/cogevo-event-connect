@@ -17,14 +17,14 @@ const eventSchema = z.object({
 })
 
 // Helper to parse email templates safely even if nested strings
-function parseEmailTemplates(jsonString: string | null): Record<string, any> | undefined {
+function parseEmailTemplates(jsonString: string | null): Record<string, unknown> | undefined {
     if (!jsonString) return undefined;
     try {
         const parsed = JSON.parse(jsonString);
         if (parsed && typeof parsed === 'object') {
-            const clean: Record<string, any> = {};
+            const clean: Record<string, unknown> = {};
             Object.keys(parsed).forEach(key => {
-                const val = parsed[key];
+                const val = (parsed as Record<string, unknown>)[key];
                 if (typeof val === 'string') {
                     try {
                         const inner = JSON.parse(val);
@@ -105,9 +105,10 @@ export async function createEvent(formData: FormData) {
     revalidatePath('/preset')
     revalidatePath('/admin/events')
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create event error:', error)
-    return { success: false, error: error.message }
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg }
   }
 }
 
@@ -162,9 +163,10 @@ export async function updateEvent(id: string, formData: FormData) {
     revalidatePath('/preset')
     revalidatePath('/admin/events')
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update event error:', error)
-    return { success: false, error: error.message }
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg }
   }
 }
 
@@ -188,9 +190,10 @@ export async function deleteEvent(id: string) {
     revalidatePath('/preset')
     revalidatePath('/admin/events')
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete event error:', error)
-    return { success: false, error: error.message }
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg }
   }
 }
 
@@ -225,9 +228,10 @@ export async function getEventsByMonth(yearMonth: string) {
     if (error) throw error;
 
     return { success: true, data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get events by month error:', error);
-    return { success: false, error: error.message || 'イベントの取得に失敗しました' };
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg || 'イベントの取得に失敗しました' };
   }
 }
 
@@ -246,11 +250,12 @@ export async function getAllEvents() {
         .select('*')
         .order('event_date', { ascending: false });
   
-      if (error) throw error;
-  
-      return { success: true, data };
-    } catch (error: any) {
-      console.error('Get all events error:', error);
-      return { success: false, error: error.message || 'イベントの取得に失敗しました' };
-    }
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error: unknown) {
+    console.error('Get all events error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, error: msg || 'イベントの取得に失敗しました' };
   }
+}
