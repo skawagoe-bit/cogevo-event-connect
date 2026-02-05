@@ -30,6 +30,16 @@ export default function DashboardPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+        {/* Admin Link (Temporary: should be role based, but currently accessible via middleware logic) */}
+        <div className="flex justify-end">
+            <button 
+                onClick={() => router.push('/admin')}
+                className="text-xs font-bold text-gray-400 hover:text-gray-600 underline"
+            >
+                管理画面へ
+            </button>
+        </div>
         
         {/* Total Stats */}
         <div className="grid grid-cols-2 gap-3">
