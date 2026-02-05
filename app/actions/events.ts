@@ -13,7 +13,7 @@ const eventSchema = z.object({
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
   roles_preset: z.array(z.string()).optional(),
-  email_templates: z.record(z.any()).optional(), 
+  email_templates: z.any().optional(), 
 })
 
 // Helper to parse email templates safely even if nested strings
