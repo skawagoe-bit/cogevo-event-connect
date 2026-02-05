@@ -20,6 +20,7 @@ const createVisitorSchema = z.object({
   badge_image_url: z.string().nullable().optional(),
   voice_memo_url: z.string().nullable().optional(),
   process_status: z.string().default('completed'), // 'completed' or 'pending_entry'
+  visit_date: z.string().optional(), // Added: YYYY-MM-DD
 })
 
 const updateVisitorSchema = z.object({
@@ -31,6 +32,7 @@ const updateVisitorSchema = z.object({
   segment: z.string().nullable().optional(),
   memo: z.string().nullable().optional(),
   process_status: z.literal('completed'),
+  visit_date: z.string().optional(), // Added
 })
 
 export async function createVisitor(formData: FormData) {
@@ -59,6 +61,7 @@ export async function createVisitor(formData: FormData) {
       badge_image_url: formData.get('badge_image_url'),
       voice_memo_url: formData.get('voice_memo_url'),
       process_status: formData.get('process_status') || 'completed',
+      visit_date: formData.get('visit_date') || new Date().toISOString().split('T')[0], // Default to today
     }
 
     console.log("Received raw data in Server Action:", rawData);
@@ -81,6 +84,7 @@ export async function createVisitor(formData: FormData) {
         badge_image_url: validated.badge_image_url || null,
         voice_memo_url: validated.voice_memo_url || null,
         process_status: validated.process_status,
+        visit_date: validated.visit_date, // Added
         
         is_sent: false,
         sync_status: 'pending'
@@ -123,6 +127,7 @@ export async function updateVisitor(formData: FormData) {
       segment: formData.get('segment'),
       memo: formData.get('memo'),
       process_status: 'completed',
+      visit_date: formData.get('visit_date'),
     }
 
     const validated = updateVisitorSchema.parse(rawData)
@@ -137,6 +142,7 @@ export async function updateVisitor(formData: FormData) {
         segment: validated.segment || null,
         memo: validated.memo || null,
         process_status: validated.process_status,
+        visit_date: validated.visit_date || undefined,
         updated_at: new Date().toISOString()
       })
       .eq('id', validated.id)

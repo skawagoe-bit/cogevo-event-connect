@@ -7,12 +7,13 @@ import { revalidatePath } from 'next/cache'
 
 const eventSchema = z.object({
   name: z.string().min(1, 'イベント名は必須です'),
-  name_en: z.string().nullable().optional().or(z.literal('')), // nullable追加
-  event_date: z.string(),
+  name_en: z.string().nullable().optional().or(z.literal('')),
+  event_date: z.string(), // This is the START date
+  end_date: z.string().nullable().optional().or(z.literal('')), // Added: END date
   attributes_preset: z.array(z.string()).optional(),
   segments_preset: z.array(z.string()).optional(),
   roles_preset: z.array(z.string()).optional(),
-  email_templates: z.record(z.any()).optional().or(z.literal({})), // Allow any object structure for now to bypass strict validation
+  email_templates: z.record(z.any()).optional().or(z.literal({})), 
 })
 
 // Helper to parse email templates safely even if nested strings
@@ -26,14 +27,11 @@ function parseEmailTemplates(jsonString: string | null): Record<string, any> | u
                 const val = parsed[key];
                 if (typeof val === 'string') {
                     try {
-                        // If the value is a string, try to parse it as JSON
                         const inner = JSON.parse(val);
                         if (inner && typeof inner === 'object') {
                             clean[key] = inner;
                         }
                     } catch {
-                        // If parsing fails, ignore this key or keep as is?
-                        // To pass Zod validation which expects object, we should skip it if it's not object.
                     }
                 } else if (val && typeof val === 'object') {
                     clean[key] = val;
@@ -69,8 +67,9 @@ export async function createEvent(formData: FormData) {
 
     const rawData = {
       name: formData.get('name'),
-      name_en: formData.get('name_en'), // Added
+      name_en: formData.get('name_en'), 
       event_date: formData.get('event_date'),
+      end_date: formData.get('end_date'), // Added
       attributes_preset: formData.get('attributes_preset') 
         ? JSON.parse(formData.get('attributes_preset') as string)
         : undefined,
@@ -89,8 +88,9 @@ export async function createEvent(formData: FormData) {
       .from('events')
       .insert({
         name: validated.name,
-        name_en: validated.name_en || null, // Added
+        name_en: validated.name_en || null,
         event_date: validated.event_date,
+        end_date: validated.end_date || null, // Added
         user_id: user.id,
         attributes_preset: validated.attributes_preset,
         segments_preset: validated.segments_preset,
@@ -123,8 +123,9 @@ export async function updateEvent(id: string, formData: FormData) {
 
     const rawData = {
       name: formData.get('name'),
-      name_en: formData.get('name_en'), // Added
+      name_en: formData.get('name_en'),
       event_date: formData.get('event_date'),
+      end_date: formData.get('end_date'), // Added
       attributes_preset: formData.get('attributes_preset') 
         ? JSON.parse(formData.get('attributes_preset') as string)
         : undefined,
@@ -143,8 +144,9 @@ export async function updateEvent(id: string, formData: FormData) {
       .from('events')
       .update({
         name: validated.name,
-        name_en: validated.name_en || null, // Added
+        name_en: validated.name_en || null,
         event_date: validated.event_date,
+        end_date: validated.end_date || null, // Added
         attributes_preset: validated.attributes_preset,
         segments_preset: validated.segments_preset,
         roles_preset: validated.roles_preset,
@@ -152,7 +154,7 @@ export async function updateEvent(id: string, formData: FormData) {
       })
       .eq('id', id)
       .select()
-      .maybeSingle() // Use maybeSingle to avoid 'Row not found' error if RLS or ID is wrong
+      .maybeSingle() 
 
     if (error) throw error
     if (!data) throw new Error('イベントが見つかりませんでした (Could not find event)')
@@ -207,13 +209,15 @@ export async function getEventsByMonth(yearMonth: string) {
     
     // Calculate start and end of the month
     const startDate = `${yearMonth}-01`;
-    // Last day of month calculation
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${yearMonth}-${lastDay}`;
 
     const { data, error } = await supabase
       .from('events')
       .select('*')
+      // Simple range check on START date. 
+      // If event spans across months, we might want to check overlap, 
+      // but for simplicity, we check if start date is in month.
       .gte('event_date', startDate)
       .lte('event_date', endDate)
       .order('event_date', { ascending: true });

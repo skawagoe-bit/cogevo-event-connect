@@ -25,6 +25,9 @@ export default function ScanPage() {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   
+  // Registration Date
+  const [visitDate, setVisitDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
   // Check if eventId is set
   useEffect(() => {
     if (!eventId) {
@@ -544,8 +547,11 @@ export default function ScanPage() {
         roles: selectedRoles,
         isBadgeMode,
         hasImage: !!imageUrl,
-        memo: memoText
+        memo: memoText,
+        visit_date: visitDate
       });
+
+      if (visitDate) formData.append("visit_date", visitDate);
 
       const result = await createVisitor(formData);
       
@@ -801,12 +807,26 @@ export default function ScanPage() {
              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 space-y-3">
                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">{dict.scan.card_info}</h3>
                <div className="space-y-2">
-                 <input 
-                   value={company}
-                   onChange={(e) => setCompany(e.target.value)}
-                   placeholder={dict.scan.company_name}
-                   className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
-                 />
+                 <div className="flex gap-2">
+                    <div className="w-1/3">
+                        <label className="text-[10px] text-gray-500 font-bold block mb-1">登録日</label>
+                        <input 
+                            type="date"
+                            value={visitDate}
+                            onChange={(e) => setVisitDate(e.target.value)}
+                            className="w-full p-2 bg-white border border-blue-200 rounded text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                    <div className="w-2/3">
+                        <label className="text-[10px] text-gray-500 font-bold block mb-1">会社名</label>
+                        <input 
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        placeholder={dict.scan.company_name}
+                        className="w-full p-2 bg-white border border-blue-200 rounded text-sm font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                 </div>
                  <input 
                    value={name}
                    onChange={(e) => setName(e.target.value)}

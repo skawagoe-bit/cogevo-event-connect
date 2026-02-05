@@ -12,6 +12,7 @@ interface EventItem {
   name: string;
   name_en?: string;
   event_date: string;
+  end_date?: string | null; // Added
   attributes_preset?: string[];
   segments_preset?: string[];
   roles_preset?: string[];
@@ -29,6 +30,7 @@ export default function AdminEventsPage() {
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [endDate, setEndDate] = useState(""); // Added
   const [attributes, setAttributes] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
@@ -64,6 +66,7 @@ export default function AdminEventsPage() {
     setName("");
     setNameEn("");
     setEventDate(new Date().toISOString().slice(0, 10));
+    setEndDate(""); // Added
     setAttributes(["医師", "看護師", "PT", "OT", "ST", "事務長", "施設長", "その他"]);
     setSegments(["パートナー", "既存顧客", "新規リード", "競合"]);
     setRoles(["決裁者", "担当者", "導入検討中", "情報収集"]);
@@ -84,6 +87,7 @@ export default function AdminEventsPage() {
     setName(event.name);
     setNameEn(event.name_en || "");
     setEventDate(event.event_date.slice(0, 10)); // YYYY-MM-DD
+    setEndDate(event.end_date ? event.end_date.slice(0, 10) : ""); // Added
     setAttributes(event.attributes_preset || []);
     setSegments(event.segments_preset || []);
     setRoles(event.roles_preset || []);
@@ -106,8 +110,13 @@ export default function AdminEventsPage() {
 
   const handleSave = async () => {
     if (!name || !eventDate) {
-      alert("イベント名と開催日は必須です");
+      alert("イベント名と開始日は必須です");
       return;
+    }
+
+    if (endDate && new Date(endDate) < new Date(eventDate)) {
+        alert("終了日は開始日より後の日付を指定してください");
+        return;
     }
 
     setIsSaving(true);
@@ -116,6 +125,7 @@ export default function AdminEventsPage() {
         formData.append("name", name);
         if (nameEn) formData.append("name_en", nameEn);
         formData.append("event_date", eventDate);
+        if (endDate) formData.append("end_date", endDate); // Added
         formData.append("attributes_preset", JSON.stringify(attributes));
         formData.append("segments_preset", JSON.stringify(segments));
         formData.append("roles_preset", JSON.stringify(roles));
@@ -329,12 +339,28 @@ export default function AdminEventsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 block">開催日 <span className="text-red-500">*</span></label>
-                <input 
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
-                />
+                <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                        <span className="text-xs text-gray-500 block mb-1">開始日</span>
+                        <input 
+                        type="date"
+                        value={eventDate}
+                        onChange={(e) => setEventDate(e.target.value)}
+                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                        />
+                    </div>
+                    <span className="text-gray-400 mt-5">〜</span>
+                    <div className="flex-1">
+                        <span className="text-xs text-gray-500 block mb-1">終了日 (任意)</span>
+                        <input 
+                        type="date"
+                        value={endDate}
+                        min={eventDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                        />
+                    </div>
+                </div>
               </div>
 
               {/* Attributes Section */}

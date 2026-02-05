@@ -82,7 +82,8 @@ export async function registerVisitorsToSansan(visitorIds: string[]) {
                     companyName: visitor.company,
                     email: visitor.email,
                     tags: tags,
-                    memo: visitor.memo
+                    memo: visitor.memo,
+                    exchangeDate: visitor.visit_date // Added exchangeDate (Sansan registration date)
                 };
 
                 console.log(`[Sansan API] Registering ${visitor.name}...`, payload);
