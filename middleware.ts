@@ -7,13 +7,11 @@ const isPublicRoute = createRouteMatcher([
   "/access-denied"
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware((auth, req) => {
   if (isPublicRoute(req)) {
-    return; // Public routes do not need protection
+    return;
   }
-  
-  // Protect private routes
-  await auth.protect();
+  auth().protect();
 });
 
 export const config = {
