@@ -110,7 +110,13 @@ export async function createEvent(formData: FormData) {
     return { success: true, data }
   } catch (error: unknown) {
     console.error('Create event error:', error)
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof z.ZodError 
+      ? JSON.stringify(error.errors, null, 2)
+      : error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null
+          ? JSON.stringify(error, null, 2)
+          : String(error);
     return { success: false, error: msg }
   }
 }
@@ -168,7 +174,13 @@ export async function updateEvent(id: string, formData: FormData) {
     return { success: true, data }
   } catch (error: unknown) {
     console.error('Update event error:', error)
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof z.ZodError 
+      ? JSON.stringify(error.errors, null, 2)
+      : error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null
+          ? JSON.stringify(error, null, 2)
+          : String(error);
     return { success: false, error: msg }
   }
 }

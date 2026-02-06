@@ -169,7 +169,8 @@ export default function AdminEventsPage() {
           setIsModalOpen(false);
           fetchEvents();
         } else {
-          alert("保存に失敗しました: " + result.error);
+          console.error("Save failed:", result.error);
+          alert("保存に失敗しました:\n" + (typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error));
         }
     } catch (e: unknown) {
         console.error(e);
