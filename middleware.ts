@@ -22,4 +22,9 @@ export const config = {
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],
+  unstable_allowDynamic: [
+    '/node_modules/@clerk/nextjs/dist/esm/server/clerkMiddleware.js',
+    '/node_modules/@clerk/shared/dist/**',
+    '**/node_modules/@clerk/**',
+  ],
 };
