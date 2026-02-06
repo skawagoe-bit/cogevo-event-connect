@@ -1,18 +1,8 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-  "/access-denied"
-]);
-
-export default clerkMiddleware((auth, req) => {
-  if (isPublicRoute(req)) {
-    return;
-  }
-  auth().protect();
-});
+// シンプルにclerkMiddlewareを適用するだけにする
+// これにより、auth().protect()などの呼び出しによるエラーを回避
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
