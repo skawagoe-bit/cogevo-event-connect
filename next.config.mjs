@@ -7,6 +7,7 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  transpilePackages: ["@clerk/nextjs", "@clerk/backend", "@clerk/shared"],
   
   async headers() {
     return [
