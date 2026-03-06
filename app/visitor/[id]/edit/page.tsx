@@ -2,17 +2,24 @@
 
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Play, Pause, Loader2, Mic } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Loader2, Mic, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getVisitor, updateVisitor } from "@/app/actions/visitors";
 import { useSettings } from "@/app/providers";
 import { useTranslation } from "@/lib/i18n/context";
+import {
+  OBSIDIAN_FOLDER_KEY,
+  OBSIDIAN_VAULT_KEY,
+  buildObsidianFilePath,
+  buildObsidianNewNoteUri,
+  buildVisitorNoteMarkdown,
+} from "@/lib/obsidian";
 
 export default function EditVisitorPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { t, dict } = useTranslation();
-  const { attributes, segments } = useSettings();
+  const { attributes, segments, eventName } = useSettings();
   
   // Unwrap params using React.use()
   const { id: visitorId } = use(params);
@@ -32,6 +39,8 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
   // Voice Memo State for Edit Page
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const toggleVoiceInput = () => {
     if (isListening) {
@@ -143,6 +152,45 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleExportToObsidian = () => {
+    const vault = localStorage.getItem(OBSIDIAN_VAULT_KEY)?.trim();
+    if (!vault) {
+      alert(dict.profile.obsidian_vault_required);
+      router.push("/profile");
+      return;
+    }
+
+    try {
+      const folder = localStorage.getItem(OBSIDIAN_FOLDER_KEY) || "";
+      const markdown = buildVisitorNoteMarkdown({
+        eventName,
+        company,
+        name,
+        email,
+        attribute: selectedAttribute,
+        segment: selectedSegment,
+        memo,
+        visitDate: visitor?.visit_date,
+      });
+      const filePath = buildObsidianFilePath({
+        folder,
+        visitDate: visitor?.visit_date,
+        company,
+        name,
+      });
+      const uri = buildObsidianNewNoteUri({
+        vault,
+        filePath,
+        content: markdown,
+      });
+
+      window.location.href = uri;
+    } catch (error) {
+      console.error("Failed to open Obsidian URI", error);
+      alert(dict.profile.obsidian_open_failed);
     }
   };
 
@@ -320,6 +368,16 @@ export default function EditVisitorPage({ params }: { params: Promise<{ id: stri
           >
             {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
             {dict.list.update_register}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExportToObsidian}
+            className="w-full h-12 text-base font-bold border-primary text-primary"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            {dict.list.export_obsidian}
           </Button>
 
         </div>
