@@ -6,6 +6,7 @@ import { Save, ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProfile, updateProfile } from "@/app/actions/profile";
 import { useTranslation } from "@/lib/i18n/context";
+import { OBSIDIAN_FOLDER_KEY, OBSIDIAN_VAULT_KEY } from "@/lib/obsidian";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [obsidianVault, setObsidianVault] = useState("");
+  const [obsidianFolder, setObsidianFolder] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +32,8 @@ export default function ProfilePage() {
       // Load API Key from local storage
       const savedKey = localStorage.getItem("gemini_api_key");
       if (savedKey) setApiKey(savedKey);
+      setObsidianVault(localStorage.getItem(OBSIDIAN_VAULT_KEY) || "");
+      setObsidianFolder(localStorage.getItem(OBSIDIAN_FOLDER_KEY) || "");
 
       setLoading(false);
     };
@@ -43,6 +48,16 @@ export default function ProfilePage() {
         localStorage.setItem("gemini_api_key", apiKey);
     } else {
         localStorage.removeItem("gemini_api_key");
+    }
+    if (obsidianVault.trim()) {
+      localStorage.setItem(OBSIDIAN_VAULT_KEY, obsidianVault.trim());
+    } else {
+      localStorage.removeItem(OBSIDIAN_VAULT_KEY);
+    }
+    if (obsidianFolder.trim()) {
+      localStorage.setItem(OBSIDIAN_FOLDER_KEY, obsidianFolder.trim());
+    } else {
+      localStorage.removeItem(OBSIDIAN_FOLDER_KEY);
     }
 
     const formData = new FormData();
@@ -128,6 +143,35 @@ export default function ProfilePage() {
                   AI解析（名刺の文字起こし）に使用するAPIキーを設定できます。<br/>
                   未設定の場合は共有キーが使用されますが、制限により動作しない場合があります。
                 </p>
+              </div>
+
+              <div className="pt-2 border-t">
+                <p className="text-sm font-bold text-gray-700 mb-3">{dict.profile.obsidian_section}</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">{dict.profile.obsidian_vault}</label>
+                    <input
+                      type="text"
+                      value={obsidianVault}
+                      onChange={(e) => setObsidianVault(e.target.value)}
+                      placeholder={dict.profile.obsidian_vault_placeholder}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">{dict.profile.obsidian_vault_desc}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">{dict.profile.obsidian_folder}</label>
+                    <input
+                      type="text"
+                      value={obsidianFolder}
+                      onChange={(e) => setObsidianFolder(e.target.value)}
+                      placeholder={dict.profile.obsidian_folder_placeholder}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">{dict.profile.obsidian_folder_desc}</p>
+                  </div>
+                </div>
               </div>
 
               {sansanUrl && (
